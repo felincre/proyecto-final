@@ -34,3 +34,10 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+
+# Google Antigravity (AGY)
+.agents/scratch/
+.agents/logs/
+.agents/tmp/
+.agents/skills.json
+
