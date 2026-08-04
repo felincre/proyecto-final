@@ -57,3 +57,16 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
 - **Tradeoff:** Permite validar la interacción real del código de la Lambda con un motor SQL PostgreSQL de forma gratuita. El tradeoff es que los recursos específicos de IaC para aprovisionar `aws_db_instance` de Terraform no se ejecutan contra LocalStack, debiéndose dejar documentados u omitidos en la ejecución local mediante variables o condicionales.
 - **Resultado:** Aprovisionado un servicio `db` PostgreSQL en `compose.yaml` integrado a la red Docker del proyecto.
 
+---
+
+### 006 — Gestión de credenciales de base de datos con AWS Secrets Manager
+
+- **Decision:** Almacenar y recuperar dinámicamente las credenciales de conexión de la base de datos a través de AWS Secrets Manager, en lugar de definirlas en texto plano en las variables de entorno de la función Lambda o hardcodearlas en el código.
+- **Contexto:** Almacenar contraseñas y nombres de usuario de base de datos en variables de entorno estándar de AWS Lambda las expone en texto plano en la consola de AWS y mediante llamadas a la API `GetFunctionConfiguration` para cualquier usuario con lectura básica. Al tratarse de un sistema con información transaccional sensible, es un riesgo de seguridad crítico e inaceptable.
+- **Alternativas:**
+  1. Utilizar variables de entorno de la Lambda con encriptación personalizada usando llaves AWS KMS administradas por el cliente.
+  2. Almacenar credenciales en el almacén de parámetros de AWS Systems Manager (Parameter Store).
+- **Tradeoff:** El uso de Secrets Manager añade el costo de almacenar el secreto (~$0.40/mes) y un costo marginal por cada 10,000 llamadas a la API. Adicionalmente, el código de la Lambda debe integrar el SDK `boto3` para realizar la llamada de red al inicio de la ejecución. Sin embargo, esto se compensa al proveer un almacenamiento fuertemente cifrado por KMS, permitir auditorías automáticas de acceso a contraseñas vía CloudTrail y posibilitar la rotación automática de claves en el motor de base de datos en producción.
+- **Resultado:** Declarados los recursos `aws_secretsmanager_secret` y `aws_secretsmanager_secret_version` en OpenTofu y mapeado el permiso `secretsmanager:GetSecretValue` en la política IAM de ejecución de la Lambda.
+
+
