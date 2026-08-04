@@ -12,12 +12,13 @@ graph TD
             Lambda
             RDS[(RDS / PostgreSQL)]
         end
-        Lambda -->|3. Escribe datos| RDS
-        Lambda -.->|4. Tráfico privado| S3Endpoint[S3 Gateway Endpoint]
+        Lambda -->|4. Escribe datos| RDS
+        Lambda -.->|3. Tráfico privado| S3Endpoint[S3 Gateway Endpoint]
+        Lambda -.->|5. Obtiene credenciales| SecretsMgr[(AWS Secrets Manager)]
     end
     
     S3Endpoint -.->|Descarga imagen| S3Raw
-    S3Raw -->|5. Lifecycle Rule: 7 días| Glacier[(S3 Glacier Archive)]
+    S3Raw -->|6. Lifecycle Rule: 7 días| Glacier[(S3 Glacier Archive)]
 ```
 
 *Ver [docs/plan-de-migracion.md](file:///home/felincre/proyectos/repos/proyecto-final/docs/plan-de-migracion.md) para más detalles del plan de tiempos y Gantt.*
@@ -28,7 +29,8 @@ graph TD
 |---|---|---|
 | Contenedor LocalStack S3 | Amazon S3 | AWS IAM S3 Bucket Policy |
 | Contenedor Docker Lambda | AWS Lambda | AWS IAM Role `contract-processor-role` |
-| Contenedor PostgreSQL | Amazon RDS PostgreSQL | AWS Secrets Manager + VPC Security Groups |
+| Contenedor PostgreSQL | Amazon RDS PostgreSQL | VPC Security Groups |
+| LocalStack Secrets Manager | AWS Secrets Manager | AWS KMS / Secrets Policy + IAM Role |
 | Docker network default | AWS VPC / Private Subnet | VPC Route Tables |
 | - | S3 Gateway Endpoint | VPC Route Table entry |
 
