@@ -256,7 +256,7 @@ resource "aws_secretsmanager_secret" "db_credentials" {
 }
 
 resource "aws_secretsmanager_secret_version" "db_credentials_version" {
-  secret_id     = aws_secretsmanager_secret.db_credentials.id
+  secret_id = aws_secretsmanager_secret.db_credentials.id
   secret_string = jsonencode({
     host     = "proyecto-postgres" # Host del contenedor en compose.yaml
     port     = 5432
@@ -332,9 +332,9 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
 # -------------------------------------------------------------
 
 resource "aws_db_subnet_group" "db_subnet_group" {
-  count       = var.environment == "prod" ? 1 : 0
-  name        = "${var.project_name}-db-subnet-group"
-  subnet_ids  = [aws_subnet.private.id, aws_subnet.private_b.id]
+  count      = var.environment == "prod" ? 1 : 0
+  name       = "${var.project_name}-db-subnet-group"
+  subnet_ids = [aws_subnet.private.id, aws_subnet.private_b.id]
 
   tags = {
     Name        = "${var.project_name}-db-subnet-group"
