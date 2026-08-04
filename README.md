@@ -1,4 +1,4 @@
-# {{PROJECT_NAME}}
+# Ingesta y Procesamiento Automatizado de Contratos
 
 Proyecto integrador del módulo Cloud Computing (ITBA).
 
