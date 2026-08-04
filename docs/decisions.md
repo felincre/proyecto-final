@@ -69,4 +69,17 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
 - **Tradeoff:** El uso de Secrets Manager añade el costo de almacenar el secreto (~$0.40/mes) y un costo marginal por cada 10,000 llamadas a la API. Adicionalmente, el código de la Lambda debe integrar el SDK `boto3` para realizar la llamada de red al inicio de la ejecución. Sin embargo, esto se compensa al proveer un almacenamiento fuertemente cifrado por KMS, permitir auditorías automáticas de acceso a contraseñas vía CloudTrail y posibilitar la rotación automática de claves en el motor de base de datos en producción.
 - **Resultado:** Declarados los recursos `aws_secretsmanager_secret` y `aws_secretsmanager_secret_version` en OpenTofu y mapeado el permiso `secretsmanager:GetSecretValue` en la política IAM de ejecución de la Lambda.
 
+---
+
+### 007 — Acoplamiento del trigger: Notificación directa S3-to-Lambda en lugar de cola SQS intermedia
+
+- **Decision:** Utilizar una notificación directa de eventos de S3 hacia la función Lambda (`aws_s3_bucket_notification`) para el entorno de desarrollo y pruebas iniciales, en lugar de interponer una cola AWS SQS.
+- **Contexto:** En la arquitectura serverless orientada a eventos, cuando un archivo se sube a S3, el servicio debe notificar al cómputo. La forma más simple es un trigger directo. Sin embargo, en un escenario de alta concurrencia de producción (carga masiva de contratos), un trigger directo puede saturar la Lambda o colapsar las conexiones de la base de datos (PostgreSQL/RDS), ya que no hay control de tasa (rate limiting) intermedio.
+- **Alternativas:**
+  1. Interponer una cola **AWS SQS** (S3 $\rightarrow$ SQS $\rightarrow$ Lambda) que actúe como buffer de amortiguación de carga y configure una Dead Letter Queue (DLQ) para reintentos fallidos.
+  2. Usar un tópico **AWS SNS** de abanico (fan-out) intermedio si se requiriera notificar a múltiples microservicios concurrentes.
+- **Tradeoff:** La notificación directa S3-to-Lambda es más rápida de aprovisionar y simplifica el código local, ya que la Lambda recibe directamente el payload del objeto de S3 y no requiere lógica de polling ni configuración de Event Source Mappings. El tradeoff es que perdemos la resiliencia nativa frente a ráfagas de tráfico y el control fino de reintentos. Para producción, se mitigará implementando la cola SQS intermedia con DLQ.
+- **Resultado:** Configurado el recurso `aws_s3_bucket_notification` conectando el bucket con la Lambda en OpenTofu, y documentado el riesgo de sobrecarga en el plan de mitigación física.
+
+
 
