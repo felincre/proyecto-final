@@ -43,11 +43,13 @@ graph TD
 | Ingesta masiva concurrente de fotos | Introducir cola AWS SQS entre el bucket S3 y la invocación de Lambda para control de tasa y reintentos. |
 | Desvíos financieros o descontrol de costos | Implementar **AWS Budgets** mensuales y una **Alarma de Facturación de CloudWatch** (`EstimatedCharges`) vinculada a **Amazon SNS** para alertas proactivas. |
 
-## Decisiones de identidad
+## Decisiones de Identidad e Integración
 
-- **Autenticación entre servicios:** La función Lambda se ejecuta con un rol de IAM específico (`contract-processor-role`) que le otorga permisos temporales mediante STS para leer del bucket de S3 y escribir logs en CloudWatch.
-- **Acceso a base de datos:** El Host, Usuario y Contraseña de Postgres/RDS se inyectan en Lambda en tiempo de ejecución de forma segura desde AWS Secrets Manager usando la integración nativa con el VPC-enabled Lambda.
-- **Permisos S3:** El bucket cuenta con una S3 Bucket Policy restrictiva que solo permite tráfico proveniente del VPC Endpoint asociado.
+- **Autenticación entre servicios:** La función Lambda se ejecuta con un rol de IAM específico (`contract-processor-role`) que le otorga permisos temporales mediante STS para leer del bucket de S3, escribir logs en CloudWatch y consultar Secrets Manager.
+- **Acceso a base de datos:** El Host, Usuario y Contraseña de Postgres/RDS se inyectan en Lambda en tiempo de ejecución de forma segura desde AWS Secrets Manager, evitando credenciales hardcodeadas en variables de entorno en texto plano.
+- **Permisos S3:** El bucket cuenta con una S3 Bucket Policy restrictiva que solo permite tráfico proveniente del VPC Endpoint asociado (y del administrador local de despliegue).
+- **Mecanismo de Disparo (Trigger):** Se implementa una notificación directa de S3 a Lambda (`s3:ObjectCreated:*` directo a la ARN de la Lambda). Para la escala en producción, se planifica interponer una cola SQS intermedia (S3 -> SQS -> Lambda) con Dead Letter Queue (DLQ) para amortiguar picos y regular de forma asíncrona la concurrencia sobre la base de datos PostgreSQL.
+
 
 
 
