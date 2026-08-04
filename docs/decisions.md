@@ -33,3 +33,24 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
 - **Alternativas:** Almacenar los metadatos en DynamoDB o Amazon DocumentDB.
 - **Tradeoff:** RDS PostgreSQL garantiza integridad referencial, facilita consultas complejas mediante SQL (joins) y asegura consistencia total. A cambio, RDS tiene un costo mínimo de base permanente en reposo mayor que el de DynamoDB, y requiere administrar subredes y security groups en la VPC.
 - **Resultado:** Base de datos relacional planificada dentro de la subred privada de la VPC.
+
+---
+
+### 004 — VPC Gateway Endpoint para acceso privado a S3
+
+- **Decision:** Utilizar un VPC Gateway Endpoint para S3 para encaminar el tráfico privado entre la Lambda y el bucket de S3 sin utilizar un NAT Gateway.
+- **Contexto:** La función Lambda corre dentro de la subred privada de la VPC por motivos de seguridad (acceso a la base de datos). Para leer los contratos de S3, requiere conectividad de red con el servicio. Un NAT Gateway resolvería esto pero tiene un costo de ~$32/mes. Como S3 admite Gateway Endpoints (sin costo de procesamiento ni cargos fijos por hora), podemos rutear este tráfico internamente en AWS.
+- **Alternativas:** Utilizar NAT Gateway para salida general a Internet, o VPC Interface Endpoint (que tiene costo fijo por hora).
+- **Tradeoff:** Costo fijo cero ($0/mes) y latencia ultra baja al permanecer el tráfico en la red interna de AWS. El tradeoff es que los Gateway Endpoints solo sirven para S3 y DynamoDB; cualquier acceso posterior de la Lambda a internet pública requerirá un NAT Gateway.
+- **Resultado:** Configurado `aws_vpc_endpoint` de tipo Gateway para el servicio S3 en la tabla de ruteo de la VPC.
+
+---
+
+### 005 — Emulación de base de datos RDS con contenedor PostgreSQL en Docker Compose
+
+- **Decision:** Emular el servicio de base de datos Amazon RDS PostgreSQL localmente mediante un contenedor oficial de PostgreSQL (`postgres:15`) en Docker Compose, en lugar de intentar desplegar RDS en LocalStack.
+- **Contexto:** En LocalStack Community (gratuito), las APIs de base de datos relacional (como RDS) son características exclusivas de la versión Pro. Para habilitar pruebas end-to-end locales robustas sin costo, se levanta la base de datos relacional mediante contenedores Docker estándar.
+- **Alternativas:** Comprar una licencia de LocalStack Pro, o prescindir del testing con base de datos real.
+- **Tradeoff:** Permite validar la interacción real del código de la Lambda con un motor SQL PostgreSQL de forma gratuita. El tradeoff es que los recursos específicos de IaC para aprovisionar `aws_db_instance` de Terraform no se ejecutan contra LocalStack, debiéndose dejar documentados u omitidos en la ejecución local mediante variables o condicionales.
+- **Resultado:** Aprovisionado un servicio `db` PostgreSQL en `compose.yaml` integrado a la red Docker del proyecto.
+
