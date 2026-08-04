@@ -21,7 +21,7 @@ graph TD
     S3Raw -->|6. Lifecycle Rule: 7 días| Glacier[(S3 Glacier Archive)]
 ```
 
-*Ver [docs/plan-de-migracion.md](file:///home/felincre/proyectos/repos/proyecto-final/docs/plan-de-migracion.md) para más detalles del plan de tiempos y Gantt.*
+*Ver [plan-de-migracion.md](plan-de-migracion.md) para más detalles del plan de tiempos y Gantt.*
 
 ## Componentes
 
