@@ -79,13 +79,57 @@ Mirar `iac/README.md` para elegir provider local.
 
 Al final del módulo, este repo debería tener:
 
-- [ ] `docs/architecture.md` con tu diagrama y componentes
-- [ ] `docs/decisions.md` con al menos 5 decisiones documentadas (ADR)
-- [ ] `iam/` con los JSON de tu solución (trust + policies + bucket policy)
-- [ ] `scripts/` con al menos 3 demos automatizados (idempotentes)
-- [ ] `compose.yaml` con los servicios que tu arquitectura usa
-- [ ] Tests unitarios (`pytest` pasa)
-- [ ] README explicando cómo correrlo end-to-end
+- [x] `docs/architecture.md` con tu diagrama y componentes
+- [x] `docs/decisions.md` con al menos 5 decisiones documentadas (ADR)
+- [x] `iam/` con los JSON de tu solución (trust + policies + bucket policy)
+- [x] `scripts/` con al menos 3 demos automatizados (idempotentes)
+- [x] `compose.yaml` con los servicios que tu arquitectura usa
+- [x] Tests unitarios (`pytest` pasa)
+- [x] README explicando cómo correrlo end-to-end
+
+---
+
+## Cómo correr el proyecto localmente (Local-first)
+
+Para levantar la infraestructura y ejecutar el flujo completo en tu entorno de desarrollo local, sigue estos pasos:
+
+### 1. Iniciar los contenedores Docker (LocalStack & PostgreSQL)
+Levanta los servicios definidos en el archivo compose.
+```bash
+docker compose up -d
+```
+Esto iniciará:
+* **LocalStack (Ministack):** Emulando S3, Lambda, VPC, IAM y Secrets Manager en el puerto `4566`.
+* **PostgreSQL:** Actuando como la base de datos relacional (RDS emulado) en el puerto `5432`.
+
+### 2. Desplegar la infraestructura con OpenTofu (IaC)
+Ejecuta el script de despliegue para inicializar OpenTofu y aplicar la configuración en LocalStack de forma automática e idempotente.
+```bash
+./scripts/01-deploy-infra.sh
+```
+Este comando aprovisionará la VPC, subredes, endpoints de S3, el bucket, las políticas y roles de IAM, el secreto de credenciales en Secrets Manager y la función Lambda.
+
+### 3. Subir un contrato a S3 para disparar el flujo
+Sube un archivo de contrato mock (`mock_contract.jpg`) a la subred S3 emulada utilizando Boto3.
+```bash
+python3 ./scripts/02-upload-contract.py
+```
+La subida del archivo `.jpg` disparará de manera automática e inmediata la ejecución de la función Lambda `contract-processor` a través de los eventos configurados en S3.
+
+### 4. Validar el procesamiento (Logs y Base de Datos)
+Verifica que el flujo se completó correctamente leyendo los logs de CloudWatch y consultando la base de datos PostgreSQL.
+```bash
+python3 ./scripts/03-verify-processing.py
+```
+Este script:
+1. Conecta con la base de datos PostgreSQL y crea/consulta la tabla `processed_contracts` para validar la persistencia e idempotencia.
+2. Lee los logs de ejecución reales de la función Lambda desde el log stream de CloudWatch en LocalStack, validando que el trigger de S3 se disparó de forma correcta.
+
+### 5. Ejecutar Pruebas Unitarias
+Para correr los tests unitarios y asegurar que todos los recursos locales se encuentran correctamente configurados en LocalStack, ejecuta:
+```bash
+pytest
+```
 
 ---
 
