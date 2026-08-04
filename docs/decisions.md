@@ -8,13 +8,16 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
 
 ### 001 — Redundancia en base de datos (RDS) y ciclo de vida en S3 (Glacier)
 
-- **Decision:** Centrar la redundancia activa en la base de datos (RDS PostgreSQL) y archivar los archivos crudos de S3 a Glacier mediante políticas de ciclo de vida (S3 Lifecycle), sin implementar replicación activa multi-región de S3.
-- **Contexto:** Una vez que la Lambda procesa el contrato y extrae la información relevante, la imagen cruda (.jpg) en S3 se convierte en datos "fríos" e históricos. Toda la información "caliente" de consulta diaria reside en la base de datos.
-- **Alternativas:** Replicar activamente el bucket de S3 entre regiones (S3 CRR) o mantener los archivos de imagen en almacenamiento caliente standard de por vida.
-- **Tradeoff:** Se ahorra costo de transferencia y almacenamiento de red al no duplicar las imágenes por múltiples regiones y al moverlas a Glacier. A cambio, concentramos la inversión de tolerancia a fallos en la base de datos mediante réplicas de lectura o Multi-AZ, que es el verdadero núcleo de consulta del negocio.
-- **Resultado:** Configurado el ciclo de vida en S3 para archivar objetos a los 7 días a Glacier. La base de datos RDS PostgreSQL se planifica con Multi-AZ en producción.
+- **Decision:** Concentrar la redundancia y alta disponibilidad activa (Multi-AZ) en la base de datos (RDS PostgreSQL), archivar las imágenes crudas de S3 a Glacier mediante políticas de ciclo de vida (S3 Lifecycle), y omitir la replicación activa multi-región para ambos servicios.
+- **Contexto:** En la nube, la alta disponibilidad tiene costo. S3 Standard ofrece por defecto replicación automática en al menos 3 Zonas de Disponibilidad (AZ) con 99.999999999% de durabilidad. No obstante, para la base de datos RDS, una instancia Single-AZ es un punto único de falla (SPOF) físico. Una vez procesado el contrato, las imágenes crudas son datos fríos e históricos, mientras que los metadatos y relaciones del negocio en la base de datos constituyen el motor activo de consulta diaria.
+- **Alternativas:** 
+  1. Configurar replicación de base de datos multi-región activa-activa y replicación de S3 entre regiones (S3 Cross-Region Replication - CRR).
+  2. Mantener RDS en Single-AZ y S3 sin ciclo de vida (almacenamiento Standard indefinido).
+- **Tradeoff:** Se decidió no implementar redundancia multi-región para optimizar costos de transferencia de salida (egress) y storage, ya que el procesamiento de contratos es asíncrono y tolera una eventual caída regional (RTO y RPO flexibles de horas). Sin embargo, se invierte en alta disponibilidad local configurando **RDS Multi-AZ** (réplica en standby síncrona en otra AZ con failover automático de <60s) para proteger la consistencia operativa, y se ahorra costo de storage archivando imágenes frías a Glacier a los 7 días.
+- **Resultado:** Configurado el ciclo de vida en S3 para archivar objetos a los 7 días a Glacier. La base de datos RDS PostgreSQL se planifica con Multi-AZ habilitado (`multi_az = true`) para producción, garantizando resiliencia ante caídas de un centro de datos entero (AZ) sin intervención manual.
 
 ---
+
 
 ### 002 — Cómputo serverless con AWS Lambda en lugar de instancias EC2
 
