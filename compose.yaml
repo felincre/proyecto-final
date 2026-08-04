@@ -1,11 +1,47 @@
-# Servicios del proyecto.
-# Agregá acá los que tu arquitectura necesite.
-# Referencias en los labs del curso (cloud-foundations-lab):
-#   - postgres (lab 02)
-#   - minio (lab 02)
-#   - localstack (lab 04+)
-#   - redis, redpanda (labs siguientes)
+services:
+  postgres:
+    image: postgres:16
+    container_name: proyecto-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: contracts_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - proyecto-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d contracts_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-services: {}
+  localstack:
+    image: ministackorg/ministack:1.3.72
+    container_name: proyecto-localstack
+    environment:
+      SERVICES: s3,lambda,iam,sts,ec2,secretsmanager,cloudwatch,logs
+      AWS_DEFAULT_REGION: us-east-1
+      LAMBDA_DOCKER_NETWORK: proyecto-network
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - proyecto-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
-volumes: {}
+networks:
+  proyecto-network:
+    name: proyecto-network
+
+volumes:
+  postgres-data:
+  localstack-data:
