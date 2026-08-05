@@ -22,7 +22,7 @@ services:
     image: ministackorg/ministack:1.3.72
     container_name: proyecto-localstack
     environment:
-      SERVICES: s3,lambda,iam,sts,ec2,secretsmanager,cloudwatch,logs
+      SERVICES: s3,lambda,iam,sts,ec2,secretsmanager,cloudwatch,logs,sqs,sns
       AWS_DEFAULT_REGION: us-east-1
       LAMBDA_DOCKER_NETWORK: proyecto-network
     ports:

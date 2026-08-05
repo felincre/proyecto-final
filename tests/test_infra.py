@@ -66,3 +66,38 @@ def test_secrets_manager_secret_exists(secrets_client):
         assert response["Name"] == secret_name
     except Exception as e:
         pytest.fail(f"El secreto {secret_name} no existe o no es accesible: {e}")
+
+@pytest.fixture(scope="module")
+def sqs_client():
+    return boto3.client(
+        "sqs",
+        endpoint_url=LOCALSTACK_ENDPOINT,
+        aws_access_key_id="test",
+        aws_secret_access_key="test",
+        region_name="us-east-1"
+    )
+
+def test_sqs_queues_exist(sqs_client):
+    try:
+        # Check main queue
+        response = sqs_client.get_queue_url(QueueName="contratos-serverless-contracts-queue")
+        assert response["ResponseMetadata"]["HTTPStatusCode"] == 200
+        
+        # Check DLQ
+        response_dlq = sqs_client.get_queue_url(QueueName="contratos-serverless-contracts-dlq")
+        assert response_dlq["ResponseMetadata"]["HTTPStatusCode"] == 200
+    except Exception as e:
+        pytest.fail(f"Fallo al validar la existencia de las colas SQS: {e}")
+
+def test_lambda_event_source_mapping_exists(lambda_client):
+    lambda_name = "contratos-serverless-contract-processor"
+    try:
+        response = lambda_client.list_event_source_mappings(FunctionName=lambda_name)
+        mappings = response.get("EventSourceMappings", [])
+        assert len(mappings) > 0
+        mapping = mappings[0]
+        assert "sqs" in mapping["EventSourceArn"]
+        assert mapping["State"] in ["Enabled", "Creating", "Active"]
+    except Exception as e:
+        pytest.fail(f"No se encontró el mapeo de eventos de SQS a Lambda: {e}")
+

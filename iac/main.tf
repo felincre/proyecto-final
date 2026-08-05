@@ -185,7 +185,7 @@ resource "aws_iam_role" "lambda_exec" {
 
 resource "aws_iam_policy" "lambda_policy" {
   name        = "${var.project_name}-lambda-policy"
-  description = "Policy for Lambda contract processor to access S3, Secrets Manager and CloudWatch Logs"
+  description = "Policy for Lambda contract processor to access S3, Secrets Manager, SQS and CloudWatch Logs"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -231,6 +231,18 @@ resource "aws_iam_policy" "lambda_policy" {
           "logs:PutLogEvents"
         ]
         Resource = "arn:aws:logs:*:*:*"
+      },
+      {
+        Sid    = "SQSQueueAccess"
+        Effect = "Allow"
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
+        ]
+        Resource = [
+          "arn:aws:sqs:${var.region}:000000000000:${var.project_name}-contracts-queue"
+        ]
       }
     ]
   })
@@ -305,26 +317,78 @@ resource "aws_lambda_function" "contract_processor" {
   }
 }
 
-# Permiso para que S3 invoque a la Lambda
-resource "aws_lambda_permission" "allow_s3" {
-  statement_id  = "AllowExecutionFromS3"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.contract_processor.function_name
-  principal     = "s3.amazonaws.com"
-  source_arn    = aws_s3_bucket.raw_contracts.arn
+# SQS Queue for buffering raw contract ingestion events
+resource "aws_sqs_queue" "contracts_queue" {
+  name                      = "${var.project_name}-contracts-queue"
+  delay_seconds             = 0
+  max_message_size          = 262144 # 256 KB
+  message_retention_seconds = 345600 # 4 days
+  receive_wait_time_seconds = 10     # Long polling
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.contracts_dlq.arn
+    maxReceiveCount     = 3
+  })
+
+  tags = {
+    Name        = "${var.project_name}-contracts-queue"
+    Environment = var.environment
+  }
 }
 
-# Configuración de notificación del Bucket S3 para disparar la Lambda
+# Dead Letter Queue (DLQ) for failed contract processing attempts
+resource "aws_sqs_queue" "contracts_dlq" {
+  name                      = "${var.project_name}-contracts-dlq"
+  message_retention_seconds = 1209600 # 14 days
+
+  tags = {
+    Name        = "${var.project_name}-contracts-dlq"
+    Environment = var.environment
+  }
+}
+
+# SQS Policy: Permite a S3 enviar mensajes a la cola SQS
+resource "aws_sqs_queue_policy" "contracts_queue_policy" {
+  queue_url = aws_sqs_queue.contracts_queue.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowS3ToSendMessage"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "sqs:SendMessage"
+        Resource  = aws_sqs_queue.contracts_queue.arn
+        Condition = {
+          ArnEquals = {
+            "aws:SourceArn" = aws_s3_bucket.raw_contracts.arn
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Configuración de notificación del Bucket S3 para enviar eventos a la cola SQS
 resource "aws_s3_bucket_notification" "bucket_notification" {
   bucket = aws_s3_bucket.raw_contracts.id
 
-  lambda_function {
-    lambda_function_arn = aws_lambda_function.contract_processor.arn
-    events              = ["s3:ObjectCreated:*"]
-    filter_suffix       = ".jpg"
+  queue {
+    queue_arn     = aws_sqs_queue.contracts_queue.arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_suffix = ".jpg"
   }
 
-  depends_on = [aws_lambda_permission.allow_s3]
+  depends_on = [aws_sqs_queue_policy.contracts_queue_policy]
+}
+
+# Mapeo de evento SQS a Lambda (Event Source Mapping)
+resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+  event_source_arn = aws_sqs_queue.contracts_queue.arn
+  function_name    = aws_lambda_function.contract_processor.arn
+  batch_size       = 1
+  enabled          = true
 }
 
 # -------------------------------------------------------------

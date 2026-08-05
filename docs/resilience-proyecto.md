@@ -11,7 +11,7 @@ A continuación se identifican los componentes críticos de la arquitectura fís
 | Componente | Riesgo / SPOF Identificado | Estrategia de Mitigación (Cloud) | Implementación en Código IaC |
 | :--- | :--- | :--- | :--- |
 | **Almacenamiento (S3)** | Eliminación accidental o ataque de ransomware sobre los contratos digitales. | Activación de versionado de objetos y almacenamiento redundante de Glacier. | Recurso `aws_s3_bucket_versioning` activo y política de transición a Glacier a los 7 días. |
-| **Cómputo (Lambda)** | Saturación por carga masiva concurrente de imágenes que agote la capacidad de procesamiento o colapse la BD. | Desacoplamiento temporal del trigger mediante cola de mensajería (SQS) para control de tasa (rate-limiting). | Planificado en arquitectura y registrado en el **ADR-007** (Trigger directo vs SQS). |
+| **Cómputo (Lambda)** | Saturación por carga masiva concurrente de imágenes que agote la capacidad de procesamiento o colapse la BD. | Desacoplamiento temporal del trigger mediante cola de mensajería (SQS) para control de tasa (rate-limiting) y Dead Letter Queue (DLQ). | Implementada cola `aws_sqs_queue.contracts_queue` con redrive policy y `aws_lambda_event_source_mapping` en `main.tf`. |
 | **Base de Datos (RDS)** | Caída física de la zona de disponibilidad (AZ) o falla del hardware de la base de datos PostgreSQL. | Configuración de **RDS Multi-AZ** (base primaria activa + standby síncrona pasiva en otra AZ con failover automático de <60s). | Condicional `multi_az = true` para producción configurado en `main.tf` sobre el recurso `aws_db_instance`. |
 | **Conectividad de Red** | Interrupción en la salida a Internet o saturación de enlaces NAT para acceder a S3. | Uso de un **VPC Gateway Endpoint** privado para rutear el tráfico de S3 de manera interna y gratuita. | Declaración de `aws_vpc_endpoint` de tipo "Gateway" asociado a las tablas de ruteo privadas en `main.tf`. |
 | **Monitoreo y Costos** | Desborde financiero por ejecuciones infinitas de Lambda (FinOps) o fallos silenciosos en la ingesta. | Configuración de **AWS Budgets** mensuales y alarmas de facturación en CloudWatch mediante Amazon SNS. | Detallado en el plan de mitigación operativa del proyecto. |
@@ -32,8 +32,9 @@ El diseño de resiliencia de la plataforma está dimensionado para cumplir con l
 * **Objetivo de RPO:** **5 Minutos**.
 * **Justificación técnica:**
   * Para los contratos almacenados en S3, la durabilidad de S3 Standard (que replica objetos de manera inmediata en al menos 3 AZs independientes) garantiza que no habrá pérdida de archivos ya confirmados en la API.
-  * Para los metadatos transaccionales, la replicación de RDS es **síncrona** hacia la zona de disponibilidad en standby. Esto significa que cualquier transacción SQL confirmada por la Lambda antes del fallo de la AZ principal se encuentra replicada al 100%, logrando un **RPO de 0 segundos** para datos transaccionales.
-  * Solo aquellos contratos que estuviesen en tránsito de subida exacta al momento del fallo podrían requerir que el cliente los vuelva a enviar (dentro del margen de los 5 minutos de RPO).
+  * Para los metadatos transaccionales, la replicación de RDS es **síncrona** hacia la zona de disponibilidad en standby, logrando un **RPO de 0 segundos** para datos transaccionales.
+  * La cola SQS intermedia actúa como un buffer persistente. Si la base de datos PostgreSQL se cae o la Lambda falla temporalmente, los mensajes no procesados se conservan en SQS por hasta 4 días y se reintentan automáticamente (hasta 3 veces antes de ir a la DLQ), garantizando un **RPO de prácticamente 0 segundos** para las cargas completadas.
+
 
 ---
 

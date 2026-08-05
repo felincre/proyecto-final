@@ -75,15 +75,16 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
 
 ---
 
-### 007 — Acoplamiento del trigger: Notificación directa S3-to-Lambda en lugar de cola SQS intermedia
+### 007 — Desacoplamiento del trigger: Uso de colas SQS intermedias y Dead Letter Queue (DLQ)
 
-- **Decision:** Utilizar una notificación directa de eventos de S3 hacia la función Lambda (`aws_s3_bucket_notification`) para el entorno de desarrollo y pruebas iniciales, en lugar de interponer una cola AWS SQS.
-- **Contexto:** En la arquitectura serverless orientada a eventos, cuando un archivo se sube a S3, el servicio debe notificar al cómputo. La forma más simple es un trigger directo. Sin embargo, en un escenario de alta concurrencia de producción (carga masiva de contratos), un trigger directo puede saturar la Lambda o colapsar las conexiones de la base de datos (PostgreSQL/RDS), ya que no hay control de tasa (rate limiting) intermedio.
+- **Decision:** Interponer una cola de mensajería **AWS SQS** y una **Dead Letter Queue (DLQ)** para canalizar los eventos de carga de S3 y disparar la ejecución de la Lambda mediante un Event Source Mapping, en lugar de realizar notificaciones directas S3-to-Lambda.
+- **Contexto:** En la arquitectura serverless orientada a eventos, cuando un archivo se sube a S3, el trigger directo puede causar picos inmanejables de concurrencia que saturen el pool de conexiones de la base de datos (PostgreSQL/RDS). Desacoplar la ingesta permite amortiguar ráfagas, controlar la tasa de ejecución (rate limiting) y aislar mensajes corruptos.
 - **Alternativas:**
-  1. Interponer una cola **AWS SQS** (S3 $\rightarrow$ SQS $\rightarrow$ Lambda) que actúe como buffer de amortiguación de carga y configure una Dead Letter Queue (DLQ) para reintentos fallidos.
-  2. Usar un tópico **AWS SNS** de abanico (fan-out) intermedio si se requiriera notificar a múltiples microservicios concurrentes.
-- **Tradeoff:** La notificación directa S3-to-Lambda es más rápida de aprovisionar y simplifica el código local, ya que la Lambda recibe directamente el payload del objeto de S3 y no requiere lógica de polling ni configuración de Event Source Mappings. El tradeoff es que perdemos la resiliencia nativa frente a ráfagas de tráfico y el control fino de reintentos. Para producción, se mitigará implementando la cola SQS intermedia con DLQ.
-- **Resultado:** Configurado el recurso `aws_s3_bucket_notification` conectando el bucket con la Lambda en OpenTofu, y documentado el riesgo de sobrecarga en el plan de mitigación física.
+  1. Utilizar una notificación directa de eventos S3-to-Lambda (`aws_s3_bucket_notification` directa a la ARN de la Lambda).
+  2. Implementar un bus de eventos más complejo con Amazon EventBridge o tópicos Amazon SNS.
+- **Tradeoff:** Añade la complejidad de aprovisionar y configurar la cola, su política de acceso y el mapeo de origen de eventos (`aws_lambda_event_source_mapping`) en OpenTofu, y requiere que la Lambda parsee eventos wrapped por SQS en el JSON de entrada. Sin embargo, esto proporciona tolerancia a fallos completa (si la base de datos se cae, los mensajes esperan hasta 4 días en la cola) y desvía automáticamente "poison messages" a la DLQ tras 3 reintentos fallidos, protegiendo al sistema.
+- **Resultado:** Aprovisionadas las colas `aws_sqs_queue.contracts_queue` y `aws_sqs_queue.contracts_dlq`, la política de SQS, el bucket notification hacia SQS y el event source mapping hacia la Lambda en OpenTofu, y adaptado el código de la Lambda para procesar los payloads encolados.
+
 
 
 
