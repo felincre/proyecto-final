@@ -24,8 +24,12 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
 - **Decision:** Utilizar AWS Lambda disparado por eventos de S3 en lugar de mantener una instancia EC2 encendida de forma permanente.
 - **Contexto:** La ingesta y procesamiento de contratos es un patrón de carga esporádico e irregular (ocurre solo cuando un usuario o escáner sube un archivo nuevo). Mantener un servidor 24/7 consumiendo CPU y memoria en reposo es financieramente ineficiente.
 - **Alternativas:** Mantener una instancia EC2 corriendo un script de escucha, o una tarea de ECS Fargate permanente.
-- **Tradeoff:** Reducción drástica del costo de cómputo (escala a cero y cobra solo por los milisegundos de ejecución del procesamiento). Como contraparte, se asume una latencia de arranque en frío (cold start) en las ejecuciones que ocurran tras períodos de inactividad, lo cual es aceptable ya que el procesamiento de contratos es una tarea asíncrona no interactiva.
+- **Tradeoff:** Reducción drástica del costo de cómputo (escala a cero y cobra solo por los milisegundos de ejecución del procesamiento). Como contraparte, se asume una latencia de arranque en frío (cold start) en la fase de **Init** de la microVM (descarga del código y arranque del runtime), lo cual es aceptable ya que el procesamiento es asíncrono y no interactivo.
+- **Optimizaciones de Rendimiento (Clase 14):**
+  1. *Reutilización de conexiones en caliente (Warm Starts):* El código de la Lambda declara la lógica de inicialización del cliente de Secrets Manager y de la base de datos **fuera del handler de ejecución (en el ámbito global)**. Esto permite ejecutar la conexión pesada una única vez durante el cold start (Init phase) y mantenerla viva para reutilizarla en milisegundos durante las ejecuciones en caliente posteriores (Invoke phase).
+  2. *Asignación de Memoria/CPU:* Se planifica la asignación de 512 MB de RAM. Dado que en AWS Lambda la potencia de CPU escala linealmente con la memoria asignada, esta cantidad proporciona un balance óptimo entre CPU y costos, reduciendo el tiempo de ejecución facturado (GB-segundo) y mitigando el impacto de latencias en el procesamiento.
 - **Resultado:** Configurado trigger de S3 (`ObjectCreated`) directo hacia la función Lambda.
+
 
 ---
 
