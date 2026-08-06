@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+*.zip
 
 # Env / secrets
 .env
@@ -40,4 +41,3 @@ terraform.rc
 .agents/logs/
 .agents/tmp/
 .agents/skills.json
-

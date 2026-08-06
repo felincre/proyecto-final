@@ -1,77 +1,43 @@
-# {{PROJECT_NAME}}
+# Ingesta y Procesamiento Automatizado de Contratos
 
 Proyecto integrador del módulo Cloud Computing (ITBA).
 
-> **Integrantes:** _completar con los miembros del grupo_
+> **Integrantes:** Felipe Indalecio Crespo
 
-Arquitectura base: VPC + IAM + S3 + Cómputo + Base de datos, todo en LocalStack/Docker (local-first), con AWS real como referencia.
-
----
-
-## Cómo arrancar
-
-### Opción A — GitHub "Use this template" (recomendado)
-
-1. Click en **"Use this template"** arriba a la derecha de este repo
-2. Elegí nombre y dueño del repo nuevo (puede ser una organización del grupo)
-3. Cloná el repo nuevo a tu máquina o abrilo en Codespaces
-4. Corré `bin/init.sh "Tu Proyecto"` para personalizar README y docs
-5. Listo: arrancá agregando servicios al `compose.yaml`
-
-### Opción B — Cookiecutter / script local
-
-Si preferís hacerlo desde la CLI sin pasar por la UI de GitHub:
-
-```bash
-# Cloná el starter
-git clone https://github.com/<owner>/proyecto-final-starter.git mi-proyecto
-cd mi-proyecto
-
-# Borrá la historia del template
-rm -rf .git
-
-# Personalizá
-./bin/init.sh "Mi Proyecto"
-
-# Arrancá un repo nuevo
-git init && git add . && git commit -m "init: proyecto final desde starter"
-
-# (opcional) creá el repo en GitHub
-gh repo create mi-proyecto --source=. --private --push
-```
+Arquitectura de ingesta de contratos serverless desacoplada: VPC + IAM + S3 + SQS (con DLQ) + Cómputo (Lambda) + Base de datos (PostgreSQL/RDS), todo emulado localmente usando LocalStack y contenedores Docker.
 
 ---
 
-## Qué incluye el starter
+## Estructura del Proyecto
 
-Solo estructura — sin servicios pre-armados. Vos elegís qué levantar y dónde.
+Este repositorio contiene la implementación completa de la arquitectura y la lógica de procesamiento:
 
 ```
 .
-├── .devcontainer/         # Codespaces listo: postgres-client, aws-cli, docker-in-docker
-├── compose.yaml           # Esqueleto vacío (services: {})
-├── docs/
-│   ├── architecture.md    # Plantilla con tablas vacías
-│   └── decisions.md       # Formato ADR
-├── iam/
-│   ├── trust_policy.json  # Único molde reutilizable (EC2 assume role)
-│   └── README.md
+├── compose.yaml           # Servicios locales: LocalStack (S3, SQS, Lambda, Secrets Manager) y PostgreSQL (RDS)
+├── assets/                # Archivos mock y assets locales del proyecto
+│   └── mock_contract.jpg  # Imagen de contrato mock de prueba
+├── iac/                   # Infraestructura como Código (IaC) en OpenTofu (Terraform)
+│   ├── main.tf            # Declaración de todos los recursos (VPC, colas SQS, lambda, bucket S3, secretos)
+│   ├── variables.tf       # Variables de configuración del proyecto (región, ambiente, etc.)
+│   ├── outputs.tf         # Outputs de la infraestructura
+│   └── aws-local.tf       # Proveedor de AWS configurado para apuntar a LocalStack local
+├── src/
+│   └── contract_processor.py # Código Python de la Lambda que parsea mensajes SQS e ingresa datos a Postgres
 ├── scripts/
-│   └── README.md          # Guía de convenciones (idempotencia, no secretos)
-├── iac/
-│   ├── main.tf            # Donde van tus recursos
-│   ├── variables.tf       # project_name, environment, region
-│   ├── outputs.tf
-│   └── providers/
-│       ├── aws-local.tf.example     # AWS contra LocalStack
-│       ├── azure-local.tf.example   # Azure contra Azurite
-│       └── gcp-local.tf.example     # GCP contra emuladores
-├── requirements.txt       # boto3, psycopg2, awscli-local, pytest
-├── bin/init.sh            # Personaliza el starter con tu proyecto
-└── .gitignore
+│   ├── 01-deploy-infra.sh    # Script automatizado para desplegar la IaC en LocalStack
+│   ├── 02-upload-contract.py # Script de demostración para subir un contrato mock a S3
+│   └── 03-verify-processing.py # Script de validación de base de datos y obtención de logs de CloudWatch
+├── tests/
+│   └── test_infra.py      # Pruebas unitarias automatizadas usando pytest y boto3
+├── docs/                  # Documentación de arquitectura, decisiones y resiliencia
+│   ├── architecture.md    # Diagrama de arquitectura y descripción detallada de componentes
+│   ├── decisions.md       # Decisiones de arquitectura documentadas (ADR)
+│   ├── plan-de-migracion.md # Plan de migración física a AWS
+│   └── resilience-proyecto.md # Plan de resiliencia, alta disponibilidad, RTO/RPO y DR
+├── iam/                   # Plantillas JSON de referencia (trust, lambda, bucket, SQS policies)
+└── requirements.txt       # Dependencias de Python (.venv)
 ```
-
-Mirar `iac/README.md` para elegir provider local.
 
 ---
 
@@ -79,13 +45,63 @@ Mirar `iac/README.md` para elegir provider local.
 
 Al final del módulo, este repo debería tener:
 
-- [ ] `docs/architecture.md` con tu diagrama y componentes
-- [ ] `docs/decisions.md` con al menos 5 decisiones documentadas (ADR)
-- [ ] `iam/` con los JSON de tu solución (trust + policies + bucket policy)
-- [ ] `scripts/` con al menos 3 demos automatizados (idempotentes)
-- [ ] `compose.yaml` con los servicios que tu arquitectura usa
-- [ ] Tests unitarios (`pytest` pasa)
-- [ ] README explicando cómo correrlo end-to-end
+- [x] `docs/architecture.md` con tu diagrama y componentes
+- [x] `docs/decisions.md` con al menos 5 decisiones documentadas (ADR)
+- [x] `iam/` con los JSON de tu solución (trust + policies + bucket policy)
+- [x] `scripts/` con al menos 3 demos automatizados (idempotentes)
+- [x] `compose.yaml` con los servicios que tu arquitectura usa
+- [x] Tests unitarios (`pytest` pasa)
+- [x] README explicando cómo correrlo end-to-end
+
+---
+
+## Cómo correr el proyecto localmente (Local-first)
+
+Para levantar la infraestructura y ejecutar el flujo completo en tu entorno de desarrollo local, sigue estos pasos:
+
+### 1. Iniciar los contenedores Docker (LocalStack & PostgreSQL)
+Levanta los servicios definidos en el archivo compose.
+```bash
+docker compose up -d
+```
+Esto iniciará:
+* **LocalStack (Ministack):** Emulando S3, SQS, SNS, Lambda, VPC, IAM y Secrets Manager en el puerto `4566`.
+* **PostgreSQL:** Actuando como la base de datos relacional (RDS emulado) en el puerto `5432`.
+
+### 1.5 Instalar dependencias de Python
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Desplegar la infraestructura con OpenTofu (IaC)
+Ejecuta el script de despliegue para inicializar OpenTofu y aplicar la configuración en LocalStack de forma automática e idempotente.
+```bash
+./scripts/01-deploy-infra.sh
+```
+Este comando aprovisionará la VPC, subredes, endpoints de S3, el bucket, las colas SQS (principal y DLQ), el Event Source Mapping, las políticas y roles de IAM, el secreto de credenciales en Secrets Manager y la función Lambda.
+
+### 3. Subir un contrato a S3 para disparar el flujo
+Sube un archivo de contrato mock (`assets/mock_contract.jpg`) a la subred S3 emulada utilizando Boto3.
+```bash
+python3 ./scripts/02-upload-contract.py
+```
+La subida del archivo `.jpg` disparará una notificación de S3 hacia la cola SQS `contratos-serverless-contracts-queue`. La cola procesará el evento y activará de manera automática e indirecta (desacoplada) la ejecución de la función Lambda `contratos-serverless-contract-processor`.
+
+### 4. Validar el procesamiento (Logs y Base de Datos)
+Verifica que el flujo se completó correctamente leyendo los logs de CloudWatch y consultando la base de datos PostgreSQL.
+```bash
+python3 ./scripts/03-verify-processing.py
+```
+Este script:
+1. Conecta con la base de datos PostgreSQL y crea/consulta la tabla `processed_contracts` para validar la persistencia e idempotencia.
+2. Lee los logs de ejecución reales de la función Lambda desde el log stream de CloudWatch en LocalStack, validando que la Lambda se haya disparado mediante el evento encolado de SQS (`Processing event received from SQS queue...`).
+
+### 5. Ejecutar Pruebas Unitarias
+Para correr los tests unitarios y asegurar que todos los recursos locales se encuentran correctamente configurados en LocalStack (incluyendo las colas SQS y los mapeos de eventos), ejecuta:
+```bash
+pytest
+```
+
 
 ---
 

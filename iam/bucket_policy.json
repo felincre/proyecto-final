@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowOnlyVPCEndpointTraffic",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::contratos-serverless-raw-contracts",
+        "arn:aws:s3:::contratos-serverless-raw-contracts/*"
+      ],
+      "Condition": {
+        "StringNotEquals": {
+          "aws:sourceVpce": "vpce-example-endpoint-id"
+        },
+        "ArnNotEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::000000000000:root"
+        }
+      }
+    }
+  ]
+}

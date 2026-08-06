@@ -1,7 +1,5 @@
 # Provider AWS apuntando a LocalStack (local-first del curso).
-#
-# Para usar: renombrar a aws-local.tf
-# Para AWS real: quitar `endpoints {}` y configurar credenciales reales.
+# Configurado para simular S3, IAM, Lambda, Secrets Manager, etc.
 
 terraform {
   required_providers {
@@ -35,5 +33,7 @@ provider "aws" {
     dynamodb       = "http://localhost:4566"
     sqs            = "http://localhost:4566"
     sns            = "http://localhost:4566"
+    lambda         = "http://localhost:4566"
+    cloudwatch     = "http://localhost:4566"
   }
 }

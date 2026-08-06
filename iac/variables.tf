@@ -1,7 +1,7 @@
 variable "project_name" {
   type        = string
   description = "Slug del proyecto. Se usa para nombrar recursos."
-  default     = "mi-proyecto"
+  default     = "contratos-serverless"
 }
 
 variable "environment" {
