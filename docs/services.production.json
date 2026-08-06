@@ -1,0 +1,85 @@
+{
+  "notes": "Proyeccion de servicios del SaaS de Alquileres en produccion. Region: us-east-1.",
+  "services": [
+    {
+      "name": "rds-postgres-db",
+      "type": "db",
+      "unit": "hs",
+      "monthly_usage": 730,
+      "unit_price": 0.034,
+      "sp_eligible": false,
+      "spot_eligible": false,
+      "notes": "db.t3.micro Multi-AZ para replicacion y alta disponibilidad en produccion"
+    },
+    {
+      "name": "alb",
+      "type": "network",
+      "unit": "hs",
+      "monthly_usage": 730,
+      "unit_price": 0.0305,
+      "sp_eligible": false,
+      "spot_eligible": false,
+      "notes": "Application Load Balancer para endpoints de red redundantes y trafico web"
+    },
+    {
+      "name": "secrets-manager",
+      "type": "security",
+      "unit": "secret-mes",
+      "monthly_usage": 1,
+      "unit_price": 0.40,
+      "sp_eligible": false,
+      "spot_eligible": false,
+      "notes": "1 secreto para credenciales seguras de produccion"
+    },
+    {
+      "name": "s3-raw-storage",
+      "type": "storage",
+      "unit": "GB-mes",
+      "monthly_usage": 2,
+      "unit_price": 0.023,
+      "sp_eligible": false,
+      "spot_eligible": false,
+      "notes": "Almacenamiento Standard para 1,000 contratos nuevos al mes (2 GB)"
+    },
+    {
+      "name": "s3-glacier-archive",
+      "type": "storage",
+      "unit": "GB-mes",
+      "monthly_usage": 100,
+      "unit_price": 0.0036,
+      "sp_eligible": false,
+      "spot_eligible": false,
+      "notes": "S3 Glacier Flexible Retrieval para 100 GB historicos acumulados"
+    },
+    {
+      "name": "lambda-processor",
+      "type": "compute",
+      "unit": "req",
+      "monthly_usage": 1000,
+      "unit_price": 0.00,
+      "sp_eligible": false,
+      "spot_eligible": false,
+      "notes": "1,000 ejecuciones mensuales. Cubierto por Free Tier."
+    },
+    {
+      "name": "sqs-queues",
+      "type": "network",
+      "unit": "req",
+      "monthly_usage": 1000,
+      "unit_price": 0.00,
+      "sp_eligible": false,
+      "spot_eligible": false,
+      "notes": "1,000 mensajes mensuales. Cubierto por Free Tier."
+    },
+    {
+      "name": "vpc-s3-gateway",
+      "type": "network",
+      "unit": "hs",
+      "monthly_usage": 730,
+      "unit_price": 0.00,
+      "sp_eligible": false,
+      "spot_eligible": false,
+      "notes": "S3 VPC Gateway Endpoint (gratuito)"
+    }
+  ]
+}
