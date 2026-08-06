@@ -101,3 +101,40 @@ def test_lambda_event_source_mapping_exists(lambda_client):
     except Exception as e:
         pytest.fail(f"No se encontró el mapeo de eventos de SQS a Lambda: {e}")
 
+def test_s3_lifecycle_policy(s3_client):
+    bucket_name = "contratos-serverless-raw-contracts"
+    try:
+        response = s3_client.get_bucket_lifecycle_configuration(Bucket=bucket_name)
+        rules = response.get("Rules", [])
+        assert len(rules) > 0
+        rule = rules[0]
+        assert rule["Status"] == "Enabled"
+        assert rule["ID"] == "archive-to-glacier-after-7-days"
+        transitions = rule.get("Transitions", [])
+        assert len(transitions) > 0
+        assert transitions[0]["Days"] == 7
+        assert transitions[0]["StorageClass"] == "GLACIER"
+    except Exception as e:
+        pytest.fail(f"Fallo al validar la regla de ciclo de vida de S3: {e}")
+
+def test_lambda_vpc_configuration(lambda_client):
+    lambda_name = "contratos-serverless-contract-processor"
+    try:
+        response = lambda_client.get_function(FunctionName=lambda_name)
+        vpc_config = response["Configuration"].get("VpcConfig", {})
+        assert len(vpc_config.get("SubnetIds", [])) > 0
+        assert len(vpc_config.get("SecurityGroupIds", [])) > 0
+    except Exception as e:
+        pytest.fail(f"La Lambda no está correctamente configurada en una VPC: {e}")
+
+def test_lambda_env_variables(lambda_client):
+    lambda_name = "contratos-serverless-contract-processor"
+    try:
+        response = lambda_client.get_function(FunctionName=lambda_name)
+        env_vars = response["Configuration"].get("Environment", {}).get("Variables", {})
+        assert "DB_SECRET_NAME" in env_vars
+        assert env_vars["DB_SECRET_NAME"] == "contratos-serverless-db-credentials"
+    except Exception as e:
+        pytest.fail(f"Variables de entorno de la Lambda faltantes o incorrectas: {e}")
+
+

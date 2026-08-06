@@ -48,7 +48,7 @@ Al final del módulo, este repo debería tener:
 - [x] `iam/` con los JSON de tu solución (trust + policies + bucket policy + sqs policy)
 - [x] `scripts/` con al menos 3 demos automatizados (idempotentes)
 - [x] `compose.yaml` con los servicios que tu arquitectura usa (incluyendo SQS/SNS activados)
-- [x] Tests unitarios (`pytest` con 6 assertions pasando exitosamente)
+- [x] Tests unitarios (`pytest` con 9 assertions pasando exitosamente)
 - [x] README explicando cómo correrlo end-to-end
 
 ---
