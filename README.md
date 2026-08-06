@@ -1,4 +1,4 @@
-# Ingesta y Procesamiento Automatizado de Contratos
+# Ingesta y Procesamiento de Contratos de Alquiler
 
 Proyecto integrador del módulo Cloud Computing (ITBA).
 
@@ -6,13 +6,13 @@ Proyecto integrador del módulo Cloud Computing (ITBA).
 
 ## Problema
 
-Una empresa gestiona un volumen creciente de contratos en formato físico y digital. Hoy, extraer los datos relevantes de cada contrato (montos, fechas, firmantes, condiciones) requiere que un operador lea el documento completo de forma manual, lo que resulta lento, propenso a errores y difícil de escalar.
+Los administradores de propiedades y propietarios de alquileres gestionan múltiples contratos de arrendamiento en formato físico o digital. Cuando necesitan consultar rápidamente información crítica de un alquiler (como el valor mensual, la fecha de vencimiento, el nombre del inquilino o el depósito de garantía), se ven obligados a buscar el documento y leerlo por completo de forma manual. Esto vuelve el proceso de cobro y auditoría lento, ineficiente y difícil de escalar.
 
-Se necesita una solución que permita digitalizar los contratos (escaneándolos como imagen), subirlos a la nube y obtener automáticamente los datos estructurados que el negocio ya sabe que necesita, sin intervención humana en el procesamiento.
+Se necesita una solución que permita digitalizar los contratos de alquiler (subiéndolos como imagen), procesarlos automáticamente y obtener de forma inmediata los datos estructurados que el negocio requiere para la administración diaria.
 
 ## Solución
 
-Arquitectura serverless orientada a eventos que automatiza el pipeline de ingesta: al subir una imagen de contrato a un bucket de S3, una cola SQS amortigua el evento y dispara una función Lambda que extrae los metadatos y los persiste en una base de datos relacional (PostgreSQL/RDS). Todo emulado localmente con LocalStack y Docker Compose.
+Arquitectura serverless orientada a eventos para el pipeline de procesamiento: al subir una imagen de un contrato de alquiler a un bucket de S3, una cola SQS amortigua la ingesta y dispara una función Lambda que extrae la información clave de manera automatizada y la persiste en una base de datos relacional (PostgreSQL/RDS). Todo emulado localmente con LocalStack y Docker Compose.
 
 ---
 
