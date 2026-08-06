@@ -42,13 +42,12 @@ Este repositorio contiene la implementación completa de la arquitectura y la l�
 
 Al final del módulo, este repo debería tener:
 
-- [x] `docs/architecture.md` con tu diagrama y componentes (incluyendo SQS/DLQ/Secrets Manager)
-- [x] `docs/decisions.md` con **7 decisiones de diseño** documentadas (ADR)
-- [x] `docs/resilience-proyecto.md` con el plan de resiliencia, alta disponibilidad, RTO/RPO y DR (Clase 13)
-- [x] `iam/` con los JSON de tu solución (trust + policies + bucket policy + sqs policy)
+- [x] `docs/architecture.md` con tu diagrama y componentes
+- [x] `docs/decisions.md` con al menos 5 decisiones documentadas (ADR)
+- [x] `iam/` con los JSON de tu solución (trust + policies + bucket policy)
 - [x] `scripts/` con al menos 3 demos automatizados (idempotentes)
-- [x] `compose.yaml` con los servicios que tu arquitectura usa (incluyendo SQS/SNS activados)
-- [x] Tests unitarios (`pytest` con 9 assertions pasando exitosamente)
+- [x] `compose.yaml` con los servicios que tu arquitectura usa
+- [x] Tests unitarios (`pytest` pasa)
 - [x] README explicando cómo correrlo end-to-end
 
 ---
