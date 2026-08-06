@@ -97,6 +97,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "raw_contracts" {
     id     = "archive-to-glacier-after-7-days"
     status = "Enabled"
 
+    filter {}
+
     transition {
       days          = 7
       storage_class = "GLACIER"
@@ -230,7 +232,7 @@ resource "aws_iam_policy" "lambda_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
-        Resource = "arn:aws:logs:*:*:*"
+        Resource = "arn:aws:logs:*:*:log-group:/aws/lambda/*"
       },
       {
         Sid    = "SQSQueueAccess"
@@ -241,11 +243,16 @@ resource "aws_iam_policy" "lambda_policy" {
           "sqs:GetQueueAttributes"
         ]
         Resource = [
-          "arn:aws:sqs:${var.region}:000000000000:${var.project_name}-contracts-queue"
+          aws_sqs_queue.contracts_queue.arn
         ]
       }
     ]
   })
+
+  tags = {
+    Name        = "${var.project_name}-lambda-policy"
+    Environment = var.environment
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_logs" {
@@ -279,7 +286,7 @@ resource "aws_secretsmanager_secret_version" "db_credentials_version" {
 }
 
 # -------------------------------------------------------------
-# 6. Cómputo (AWS Lambda Function, Trigger, Permissions)
+# 6. Cómputo (AWS Lambda Function) y Mensajería (SQS, DLQ, Event Source Mapping)
 # -------------------------------------------------------------
 
 data "archive_file" "lambda_zip" {

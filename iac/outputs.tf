@@ -27,3 +27,23 @@ output "private_subnet_id" {
   value       = aws_subnet.private.id
   description = "ID de la subred privada"
 }
+
+output "sqs_queue_url" {
+  value       = aws_sqs_queue.contracts_queue.id
+  description = "URL de la cola SQS principal"
+}
+
+output "sqs_queue_arn" {
+  value       = aws_sqs_queue.contracts_queue.arn
+  description = "ARN de la cola SQS principal"
+}
+
+output "sqs_dlq_url" {
+  value       = aws_sqs_queue.contracts_dlq.id
+  description = "URL de la Dead Letter Queue (DLQ)"
+}
+
+output "sqs_dlq_arn" {
+  value       = aws_sqs_queue.contracts_dlq.arn
+  description = "ARN de la Dead Letter Queue (DLQ)"
+}
