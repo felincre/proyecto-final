@@ -1,14 +1,16 @@
-# `scripts/` — demos automatizados del proyecto
+# `scripts/` — Demos Automatizados del Proyecto
 
-Acá van los scripts (Python o shell) que orquestan tu solución end-to-end.
+Este directorio contiene los scripts que orquestan el despliegue, la simulación y la validación del pipeline:
 
-Convenciones que vienen del curso:
-- **Idempotentes** — se pueden correr dos veces sin romper
-- **Sin secretos hardcodeados** — leen credenciales del entorno o de Secrets Manager
-- **Auto-documentados** — el output narra qué se hizo y dónde quedó
+- **`01-deploy-infra.sh`:** Inicializa OpenTofu y aplica los recursos declarados de forma automatizada e idempotente en LocalStack.
+- **`02-upload-contract.py`:** Sube una imagen mock (`mock_contract.jpg`) a S3 utilizando la librería `boto3`. Esto inicia de manera automática la cadena de eventos: `S3 ObjectCreated -> SQS Queue -> Lambda event mapping`.
+- **`03-verify-processing.py`:**
+  1. Conecta con el contenedor local PostgreSQL para verificar la persistencia de los metadatos transaccionales.
+  2. Consulta la API de CloudWatch Logs en LocalStack para recuperar la bitácora de ejecución de la Lambda y corroborar el parsing del payload proveniente de SQS.
 
-Referencias en el lab del curso:
-- `scripts/iam_demo.py` — patrón de orquestación + idempotencia
-- `scripts/ec2_demo.py` — uso de tags para detectar recursos existentes
-- `scripts/s3_demo.py` — head_object para idempotencia por contenido
-- `scripts/vpc_demo.py` — find-by-tag helper para grafo de recursos
+## Convenciones Implementadas
+
+* **Idempotencia:** Todos los scripts son seguros de ejecutar múltiples veces de forma consecutiva.
+* **Sin Secretos:** No existen contraseñas, claves o IDs quemados en el código. Las credenciales se inyectan dinámicamente.
+* **Auto-documentados:** Cada ejecución imprime de forma estructurada los pasos realizados y los resultados obtenidos.
+

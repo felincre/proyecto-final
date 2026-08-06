@@ -42,6 +42,18 @@
         "logs:PutLogEvents"
       ],
       "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Sid": "SQSQueueAccess",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
+      ],
+      "Resource": [
+        "arn:aws:sqs:us-east-1:000000000000:contratos-serverless-contracts-queue"
+      ]
     }
   ]
 }
