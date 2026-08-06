@@ -4,7 +4,15 @@ Proyecto integrador del módulo Cloud Computing (ITBA).
 
 > **Integrantes:** Felipe Indalecio Crespo
 
-Arquitectura de ingesta de contratos serverless desacoplada: VPC + IAM + S3 + SQS (con DLQ) + Cómputo (Lambda) + Base de datos (PostgreSQL/RDS), todo emulado localmente usando LocalStack y contenedores Docker.
+## Problema
+
+Una empresa gestiona un volumen creciente de contratos en formato físico y digital. Hoy, extraer los datos relevantes de cada contrato (montos, fechas, firmantes, condiciones) requiere que un operador lea el documento completo de forma manual, lo que resulta lento, propenso a errores y difícil de escalar.
+
+Se necesita una solución que permita digitalizar los contratos (escaneándolos como imagen), subirlos a la nube y obtener automáticamente los datos estructurados que el negocio ya sabe que necesita, sin intervención humana en el procesamiento.
+
+## Solución
+
+Arquitectura serverless orientada a eventos que automatiza el pipeline de ingesta: al subir una imagen de contrato a un bucket de S3, una cola SQS amortigua el evento y dispara una función Lambda que extrae los metadatos y los persiste en una base de datos relacional (PostgreSQL/RDS). Todo emulado localmente con LocalStack y Docker Compose.
 
 ---
 
