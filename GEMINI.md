@@ -6,7 +6,7 @@ Este archivo provee contexto general y directrices de desarrollo para los asiste
 
 ## 1. Contexto del Repositorio y Entorno
 El repositorio contiene la infraestructura y código de la aplicación para el entregable del proyecto integrador:
-- **Automatización:** Se utiliza **OpenTofu / Terraform** para declarar los recursos de nube en la carpeta `iac/aws/`.
+- **Automatización:** Se utiliza **OpenTofu / Terraform** para declarar los recursos de nube en la carpeta `iac/`.
 - **Contenedores:** Las aplicaciones se empaquetan en imágenes de Docker y se administran localmente con Docker Compose (`compose.yaml`).
 - **Pruebas Locales:** La emulación local de servicios de AWS se realiza sobre **LocalStack Community** (`http://localhost:4566`).
 

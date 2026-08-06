@@ -20,20 +20,22 @@ El proyecto consiste en diseñar y aprovisionar de forma 100% reproducible la in
 
 ```mermaid
 graph TD
-    User([Usuario / Escáner]) -->|1. Sube foto .jpg| S3Raw[S3 Bucket: raw-contracts-bucket]
-    S3Raw -->|2. Evento: ObjectCreated| Lambda[AWS Lambda: contract-processor]
+    User([Usuario / Escáner]) -->|1. Sube foto .jpg| S3Raw[S3 Bucket: raw-contracts]
+    S3Raw -->|2. Notificación: ObjectCreated| SQS[SQS: contracts-queue]
+    SQS -.->|Fallo reintentos x3| DLQ[SQS DLQ: contracts-dlq]
+    SQS -->|3. EventSourceMapping| Lambda[AWS Lambda: contract-processor]
     
     subgraph VPC [AWS VPC]
         subgraph SubnetPrivada [Subred Privada]
             Lambda
             RDS[(RDS / PostgreSQL)]
         end
-        Lambda -->|3. Escribe datos| RDS
-        Lambda -.->|4. Tráfico privado| S3Endpoint[S3 Gateway Endpoint]
+        Lambda -->|4. Escribe datos| RDS
+        Lambda -.->|5. Tráfico privado| S3Endpoint[S3 Gateway Endpoint]
     end
     
     S3Endpoint -.->|Descarga imagen| S3Raw
-    S3Raw -->|5. Lifecycle Rule: 7 días| Glacier[(S3 Glacier Archive)]
+    S3Raw -->|6. Lifecycle Rule: 7 días| Glacier[(S3 Glacier Archive)]
 ```
 
 ### Componentes de Infraestructura Aprovisionados
@@ -41,7 +43,9 @@ graph TD
 | Componente Físico / Lógico | Servicio AWS Equivalente | Rol / Credencial Asociada |
 | :--- | :--- | :--- |
 | **Storage de Contratos** | `aws_s3_bucket` | Reglas de ciclo de vida para archivar a Glacier a los 7 días. |
-| **Cómputo Serverless** | `aws_lambda_function` | Rol IAM con permisos de lectura S3 y escritura de logs y base de datos. |
+| **Cola de Mensajería** | `aws_sqs_queue` | Cola principal para amortiguar eventos de ingesta. SQS Queue Policy. |
+| **Cola de Descarte (DLQ)** | `aws_sqs_queue` (DLQ) | Aísla mensajes fallidos tras 3 reintentos (redrive policy). |
+| **Cómputo Serverless** | `aws_lambda_function` | Rol IAM con permisos de lectura S3, SQS y escritura de logs y base de datos. |
 | **Base de Datos** | `aws_db_instance` (emulado PostgreSQL) | Aislado en subred privada VPC. Acceso mediante Security Groups. |
 | **Canal de Red Privada** | `aws_vpc` + `aws_subnet` | Subred privada para Lambda y Base de Datos. |
 | **Optimización de Costos** | `aws_vpc_endpoint` (S3 Gateway) | Ruteo interno de Lambda a S3 sin usar NAT Gateways (costo USD 0). |

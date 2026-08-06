@@ -55,7 +55,7 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
 
 ### 005 — Emulación de base de datos RDS con contenedor PostgreSQL en Docker Compose
 
-- **Decision:** Emular el servicio de base de datos Amazon RDS PostgreSQL localmente mediante un contenedor oficial de PostgreSQL (`postgres:15`) en Docker Compose, en lugar de intentar desplegar RDS en LocalStack.
+- **Decision:** Emular el servicio de base de datos Amazon RDS PostgreSQL localmente mediante un contenedor oficial de PostgreSQL (`postgres:16`) en Docker Compose, en lugar de intentar desplegar RDS en LocalStack.
 - **Contexto:** En LocalStack Community (gratuito), las APIs de base de datos relacional (como RDS) son características exclusivas de la versión Pro. Para habilitar pruebas end-to-end locales robustas sin costo, se levanta la base de datos relacional mediante contenedores Docker estándar.
 - **Alternativas:** Comprar una licencia de LocalStack Pro, o prescindir del testing con base de datos real.
 - **Tradeoff:** Permite validar la interacción real del código de la Lambda con un motor SQL PostgreSQL de forma gratuita. El tradeoff es que los recursos específicos de IaC para aprovisionar `aws_db_instance` de Terraform no se ejecutan contra LocalStack, debiéndose dejar documentados u omitidos en la ejecución local mediante variables o condicionales.

@@ -31,7 +31,7 @@ graph TD
 |---|---|---|
 | Contenedor LocalStack S3 | Amazon S3 | AWS IAM S3 Bucket Policy |
 | Contenedor LocalStack SQS | Amazon SQS | SQS Queue Policy |
-| Contenedor Docker Lambda | AWS Lambda | AWS IAM Role `contract-processor-role` |
+| Contenedor Docker Lambda | AWS Lambda | AWS IAM Role `lambda-exec-role` |
 | Contenedor PostgreSQL | Amazon RDS PostgreSQL | VPC Security Groups |
 | LocalStack Secrets Manager | AWS Secrets Manager | AWS KMS / Secrets Policy + IAM Role |
 | Docker network default | AWS VPC / Private Subnet | VPC Route Tables |
@@ -48,7 +48,7 @@ graph TD
 
 ## Decisiones de Identidad e Integración
 
-- **Autenticación entre servicios:** La función Lambda se ejecuta con un rol de IAM específico (`contract-processor-role`) que le otorga permisos temporales mediante STS para leer de la cola SQS, descargar objetos del bucket de S3, escribir logs en CloudWatch y consultar Secrets Manager.
+- **Autenticación entre servicios:** La función Lambda se ejecuta con un rol de IAM específico (`lambda-exec-role`) que le otorga permisos temporales mediante STS para leer de la cola SQS, descargar objetos del bucket de S3, escribir logs en CloudWatch y consultar Secrets Manager.
 - **Acceso a base de datos:** El Host, Usuario y Contraseña de Postgres/RDS se inyectan en Lambda en tiempo de ejecución de forma segura desde AWS Secrets Manager, evitando credenciales hardcodeadas en variables de entorno en texto plano.
 - **Permisos S3 y SQS:** El bucket cuenta con una S3 Bucket Policy restrictiva y la cola SQS con una SQS Policy que limita la recepción de eventos únicamente a tráficos autorizados de la VPC y del propio bucket.
 - **Mecanismo de Disparo (Trigger):** Se implementa una integración desacoplada asíncrona: S3 envía eventos a la cola `aws_sqs_queue.contracts_queue`, y SQS invoca a la Lambda mediante un Event Source Mapping. Los mensajes fallidos son derivados a la DLQ (`aws_sqs_queue.contracts_dlq`) después de 3 reintentos fallidos, protegiendo la disponibilidad de la base de datos PostgreSQL.

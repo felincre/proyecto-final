@@ -15,6 +15,8 @@ Este repositorio contiene la implementación completa de la arquitectura y la l�
 ```
 .
 ├── compose.yaml           # Servicios locales: LocalStack (S3, SQS, Lambda, Secrets Manager) y PostgreSQL (RDS)
+├── assets/                # Archivos mock y assets locales del proyecto
+│   └── mock_contract.jpg  # Imagen de contrato mock de prueba
 ├── iac/                   # Infraestructura como Código (IaC) en OpenTofu (Terraform)
 │   ├── main.tf            # Declaración de todos los recursos (VPC, colas SQS, lambda, bucket S3, secretos)
 │   ├── variables.tf       # Variables de configuración del proyecto (región, ambiente, etc.)
@@ -33,6 +35,7 @@ Este repositorio contiene la implementación completa de la arquitectura y la l�
 │   ├── decisions.md       # Decisiones de arquitectura documentadas (ADR)
 │   ├── plan-de-migracion.md # Plan de migración física a AWS
 │   └── resilience-proyecto.md # Plan de resiliencia, alta disponibilidad, RTO/RPO y DR
+├── iam/                   # Plantillas JSON de referencia (trust, lambda, bucket, SQS policies)
 └── requirements.txt       # Dependencias de Python (.venv)
 ```
 
@@ -65,6 +68,11 @@ Esto iniciará:
 * **LocalStack (Ministack):** Emulando S3, SQS, SNS, Lambda, VPC, IAM y Secrets Manager en el puerto `4566`.
 * **PostgreSQL:** Actuando como la base de datos relacional (RDS emulado) en el puerto `5432`.
 
+### 1.5 Instalar dependencias de Python
+```bash
+pip install -r requirements.txt
+```
+
 ### 2. Desplegar la infraestructura con OpenTofu (IaC)
 Ejecuta el script de despliegue para inicializar OpenTofu y aplicar la configuración en LocalStack de forma automática e idempotente.
 ```bash
@@ -73,11 +81,11 @@ Ejecuta el script de despliegue para inicializar OpenTofu y aplicar la configura
 Este comando aprovisionará la VPC, subredes, endpoints de S3, el bucket, las colas SQS (principal y DLQ), el Event Source Mapping, las políticas y roles de IAM, el secreto de credenciales en Secrets Manager y la función Lambda.
 
 ### 3. Subir un contrato a S3 para disparar el flujo
-Sube un archivo de contrato mock (`mock_contract.jpg`) a la subred S3 emulada utilizando Boto3.
+Sube un archivo de contrato mock (`assets/mock_contract.jpg`) a la subred S3 emulada utilizando Boto3.
 ```bash
 python3 ./scripts/02-upload-contract.py
 ```
-La subida del archivo `.jpg` disparará una notificación de S3 hacia la cola SQS `contratos-serverless-contracts-queue`. La cola procesará el evento y activará de manera automática e indirecta (desacoplada) la ejecución de la función Lambda `contract-processor`.
+La subida del archivo `.jpg` disparará una notificación de S3 hacia la cola SQS `contratos-serverless-contracts-queue`. La cola procesará el evento y activará de manera automática e indirecta (desacoplada) la ejecución de la función Lambda `contratos-serverless-contract-processor`.
 
 ### 4. Validar el procesamiento (Logs y Base de Datos)
 Verifica que el flujo se completó correctamente leyendo los logs de CloudWatch y consultando la base de datos PostgreSQL.
