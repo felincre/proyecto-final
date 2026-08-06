@@ -79,12 +79,13 @@ Mirar `iac/README.md` para elegir provider local.
 
 Al final del módulo, este repo debería tener:
 
-- [x] `docs/architecture.md` con tu diagrama y componentes
-- [x] `docs/decisions.md` con al menos 5 decisiones documentadas (ADR)
-- [x] `iam/` con los JSON de tu solución (trust + policies + bucket policy)
+- [x] `docs/architecture.md` con tu diagrama y componentes (incluyendo SQS/DLQ/Secrets Manager)
+- [x] `docs/decisions.md` con **7 decisiones de diseño** documentadas (ADR)
+- [x] `docs/resilience-proyecto.md` con el plan de resiliencia, alta disponibilidad, RTO/RPO y DR (Clase 13)
+- [x] `iam/` con los JSON de tu solución (trust + policies + bucket policy + sqs policy)
 - [x] `scripts/` con al menos 3 demos automatizados (idempotentes)
-- [x] `compose.yaml` con los servicios que tu arquitectura usa
-- [x] Tests unitarios (`pytest` pasa)
+- [x] `compose.yaml` con los servicios que tu arquitectura usa (incluyendo SQS/SNS activados)
+- [x] Tests unitarios (`pytest` con 6 assertions pasando exitosamente)
 - [x] README explicando cómo correrlo end-to-end
 
 ---
@@ -99,7 +100,7 @@ Levanta los servicios definidos en el archivo compose.
 docker compose up -d
 ```
 Esto iniciará:
-* **LocalStack (Ministack):** Emulando S3, Lambda, VPC, IAM y Secrets Manager en el puerto `4566`.
+* **LocalStack (Ministack):** Emulando S3, SQS, SNS, Lambda, VPC, IAM y Secrets Manager en el puerto `4566`.
 * **PostgreSQL:** Actuando como la base de datos relacional (RDS emulado) en el puerto `5432`.
 
 ### 2. Desplegar la infraestructura con OpenTofu (IaC)
@@ -107,14 +108,14 @@ Ejecuta el script de despliegue para inicializar OpenTofu y aplicar la configura
 ```bash
 ./scripts/01-deploy-infra.sh
 ```
-Este comando aprovisionará la VPC, subredes, endpoints de S3, el bucket, las políticas y roles de IAM, el secreto de credenciales en Secrets Manager y la función Lambda.
+Este comando aprovisionará la VPC, subredes, endpoints de S3, el bucket, las colas SQS (principal y DLQ), el Event Source Mapping, las políticas y roles de IAM, el secreto de credenciales en Secrets Manager y la función Lambda.
 
 ### 3. Subir un contrato a S3 para disparar el flujo
 Sube un archivo de contrato mock (`mock_contract.jpg`) a la subred S3 emulada utilizando Boto3.
 ```bash
 python3 ./scripts/02-upload-contract.py
 ```
-La subida del archivo `.jpg` disparará de manera automática e inmediata la ejecución de la función Lambda `contract-processor` a través de los eventos configurados en S3.
+La subida del archivo `.jpg` disparará una notificación de S3 hacia la cola SQS `contratos-serverless-contracts-queue`. La cola procesará el evento y activará de manera automática e indirecta (desacoplada) la ejecución de la función Lambda `contract-processor`.
 
 ### 4. Validar el procesamiento (Logs y Base de Datos)
 Verifica que el flujo se completó correctamente leyendo los logs de CloudWatch y consultando la base de datos PostgreSQL.
@@ -123,13 +124,14 @@ python3 ./scripts/03-verify-processing.py
 ```
 Este script:
 1. Conecta con la base de datos PostgreSQL y crea/consulta la tabla `processed_contracts` para validar la persistencia e idempotencia.
-2. Lee los logs de ejecución reales de la función Lambda desde el log stream de CloudWatch en LocalStack, validando que el trigger de S3 se disparó de forma correcta.
+2. Lee los logs de ejecución reales de la función Lambda desde el log stream de CloudWatch en LocalStack, validando que la Lambda se haya disparado mediante el evento encolado de SQS (`Processing event received from SQS queue...`).
 
 ### 5. Ejecutar Pruebas Unitarias
-Para correr los tests unitarios y asegurar que todos los recursos locales se encuentran correctamente configurados en LocalStack, ejecuta:
+Para correr los tests unitarios y asegurar que todos los recursos locales se encuentran correctamente configurados en LocalStack (incluyendo las colas SQS y los mapeos de eventos), ejecuta:
 ```bash
 pytest
 ```
+
 
 ---
 
