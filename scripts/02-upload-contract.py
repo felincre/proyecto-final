@@ -29,15 +29,18 @@ def main():
     bucket_name = get_tofu_output("raw_contracts_bucket_name")
     print(f"Bucket destino: {bucket_name}")
 
-    # Crear archivo local mock si no existe
-    mock_file = "mock_contract.jpg"
-    print(f"=== [2/3] Preparando archivo mock local: {mock_file} ===")
-    if not os.path.exists(mock_file):
-        with open(mock_file, "w") as f:
+    # Definir la ruta del archivo mock en la carpeta 'assets'
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    mock_file_path = os.path.join(base_dir, "assets", "mock_contract.jpg")
+    
+    print(f"=== [2/3] Preparando archivo mock local: {mock_file_path} ===")
+    if not os.path.exists(mock_file_path):
+        os.makedirs(os.path.dirname(mock_file_path), exist_ok=True)
+        with open(mock_file_path, "w") as f:
             f.write("MOCK CONTRACT CONTENT FOR TESTING")
-        print(f"Creado archivo local: {mock_file}")
+        print(f"Creado archivo local: {mock_file_path}")
     else:
-        print(f"Archivo local existente: {mock_file}")
+        print(f"Archivo local existente: {mock_file_path}")
 
     print("=== [3/3] Subiendo contrato a S3 (LocalStack) ===")
     # Conectarse a LocalStack S3
@@ -50,8 +53,8 @@ def main():
     )
 
     try:
-        s3_client.upload_file(mock_file, bucket_name, mock_file)
-        print(f"¡Éxito! Contrato subido a s3://{bucket_name}/{mock_file}")
+        s3_client.upload_file(mock_file_path, bucket_name, "mock_contract.jpg")
+        print(f"¡Éxito! Contrato subido a s3://{bucket_name}/mock_contract.jpg")
     except Exception as e:
         print(f"Error al subir el contrato a S3: {e}")
         sys.exit(1)

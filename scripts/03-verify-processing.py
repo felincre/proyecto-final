@@ -4,7 +4,6 @@
 # 2. Fetching Lambda logs from CloudWatch inside LocalStack.
 
 import os
-import sys
 import time
 import json
 import subprocess
