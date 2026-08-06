@@ -42,7 +42,8 @@ Este repositorio contiene la implementación completa de la arquitectura y la l�
 │   ├── architecture.md    # Diagrama de arquitectura y descripción detallada de componentes
 │   ├── decisions.md       # Decisiones de arquitectura documentadas (ADR)
 │   ├── plan-de-migracion.md # Plan de migración física a AWS
-│   └── resilience-proyecto.md # Plan de resiliencia, alta disponibilidad, RTO/RPO y DR
+│   ├── resilience-proyecto.md # Plan de resiliencia, alta disponibilidad, RTO/RPO y DR
+│   └── estimacion-costos.md # Estimación de costos y tradeoffs FinOps (desarrollo vs producción)
 ├── iam/                   # Plantillas JSON de referencia (trust, lambda, bucket, SQS policies)
 └── requirements.txt       # Dependencias de Python (.venv)
 ```
