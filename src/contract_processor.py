@@ -1,7 +1,13 @@
 import os
 import json
 import boto3
-from datetime import datetime
+from datetime import datetime, timezone
+from urllib.parse import unquote_plus
+
+# Reutilización de conexiones: el cliente se inicializa fuera del handler
+# para aprovechar warm starts y evitar re-crearlo en cada invocación.
+sm_client = boto3.client("secretsmanager", region_name=os.environ.get("AWS_REGION", "us-east-1"))
+
 
 def lambda_handler(event, context):
     print("=== MOCK CONTRACT PROCESSOR LAMBDA ===")
@@ -14,7 +20,7 @@ def lambda_handler(event, context):
             print("Processing event received from SQS queue...")
             try:
                 sqs_body = json.loads(record.get('body', '{}'))
-                s3_records = sqs_body.get('Records', [])
+                s3_records = sqs_body.get('Records') or []
             except Exception as e:
                 print(f"Error parsing SQS body JSON: {e}")
                 continue
@@ -29,8 +35,12 @@ def lambda_handler(event, context):
                 print("No S3 metadata found in record. Skipping.")
                 continue
                 
-            bucket_name = s3_record['s3']['bucket']['name']
-            object_key = s3_record['s3']['object']['key']
+            try:
+                bucket_name = s3_record['s3']['bucket']['name']
+                object_key = unquote_plus(s3_record['s3']['object']['key'])
+            except (KeyError, TypeError) as e:
+                print(f"Malformed S3 record, skipping: {e}")
+                continue
             print(f"File uploaded to S3: s3://{bucket_name}/{object_key}")
             
             # 2. Get DB Credentials from Secrets Manager (to demonstrate IAM + Secrets Manager integration)
@@ -42,8 +52,7 @@ def lambda_handler(event, context):
             if secret_name:
                 print(f"Retrieving database credentials from Secrets Manager: {secret_name}")
                 try:
-                    client = boto3.client("secretsmanager", region_name=os.environ.get("AWS_REGION", "us-east-1"))
-                    response = client.get_secret_value(SecretId=secret_name)
+                    response = sm_client.get_secret_value(SecretId=secret_name)
                     if "SecretString" in response:
                         secret = json.loads(response["SecretString"])
                         db_host = secret.get("host", db_host)
@@ -57,7 +66,7 @@ def lambda_handler(event, context):
             print(f"[DATABASE SIMULATION] Connecting to database at {db_host}...")
             print(f"[DATABASE SIMULATION] Running query: ")
             print(f"  INSERT INTO processed_contracts (s3_bucket, s3_key, processed_at, status)")
-            print(f"  VALUES ('{bucket_name}', '{object_key}', '{datetime.utcnow().isoformat()}', 'PROCESSED');")
+            print(f"  VALUES ('{bucket_name}', '{object_key}', '{datetime.now(timezone.utc).isoformat()}', 'PROCESSED');")
             print(f"[DATABASE SIMULATION] 1 row affected. Commit complete.")
             
     print("=== PROCESSING COMPLETE ===")
