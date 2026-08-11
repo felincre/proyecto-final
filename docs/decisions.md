@@ -85,6 +85,25 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
 - **Tradeoff:** Añade la complejidad de aprovisionar y configurar la cola, su política de acceso y el mapeo de origen de eventos (`aws_lambda_event_source_mapping`) en OpenTofu, y requiere que la Lambda parsee eventos wrapped por SQS en el JSON de entrada. Sin embargo, esto proporciona tolerancia a fallos completa (si la base de datos se cae, los mensajes esperan hasta 4 días en la cola) y desvía automáticamente "poison messages" a la DLQ tras 3 reintentos fallidos, protegiendo al sistema.
 - **Resultado:** Aprovisionadas las colas `aws_sqs_queue.contracts_queue` y `aws_sqs_queue.contracts_dlq`, la política de SQS, el bucket notification hacia SQS y el event source mapping hacia la Lambda en OpenTofu, y adaptado el código de la Lambda para procesar los payloads encolados.
 
+---
+
+### 008 — Elección de tecnología de mensajería: Cola (SQS) en lugar de Bus (EventBridge) o Streaming Log (Kinesis/Kafka)
+
+- **Decision:** Utilizar una cola de mensajes simple (**Amazon SQS**) con reintentos y Dead Letter Queue (DLQ) para encolar las tareas de procesamiento, en lugar de un bus de eventos (**Amazon EventBridge**) o un log distribuido de streaming (**Amazon Kinesis Data Streams / Apache Kafka**).
+- **Contexto:** En arquitecturas orientadas a eventos (Clase 15), es crucial diferenciar entre:
+  1. *Cola (SQS):* Procesamiento punto a punto de tareas. El mensaje se elimina al ser procesado exitosamente. No hay replay.
+  2. *Bus de Eventos (EventBridge):* Enrutamiento inteligente a múltiples targets según patrones declarativos JSON. Sin control de tasa de consumo.
+  3. *Streaming Log (Kinesis/Kafka):* Persistencia de flujos de eventos a escala masiva por tiempo configurable. Permite consumo concurrente por distintos grupos y replay (retroceder offsets).
+  La aplicación procesa imágenes de contratos de alquiler que se suben de forma esporádica. No requerimos análisis de telemetría a escala de gigabytes por segundo, sino procesar de forma secuencial y ordenada cada contrato cargado asegurando tolerancia a fallos.
+- **Alternativas:**
+  1. *Amazon EventBridge:* Adecuado para notificar a múltiples servicios independientes sobre la subida del contrato (ej. auditoría, finanzas, notificaciones). Sin embargo, para la tarea de procesamiento unitaria e individual (extracción de metadatos), carece de soporte nativo de cola de trabajo estructurada y control de concurrencia a nivel de BD.
+  2. *Amazon Kinesis / Apache Kafka (Redpanda):* Hubiese permitido conservar el historial de contratos subidos en el propio log para realizar futuros reprocesamientos o "replays" desde el principio del historial (TRIM_HORIZON). Sin embargo, añade un costo fijo alto (mínimo de ~$11/mes por shard en Kinesis, u hospedaje de brokers) y una complejidad de desarrollo no justificada para el volumen de la aplicación.
+- **Tradeoff:**
+  - *Ventajas de SQS:* Costo cero en reposo (escala a cero absoluto), manejo nativo de reintentos con descarte automático a DLQ tras 3 fallos (protección contra poison messages), y mecanismo de visibilidad temporal que previene el procesamiento duplicado del mismo contrato.
+  - *Desventajas:* El mensaje se elimina permanentemente una vez procesado (no hay replay desde la cola; un reprocesamiento histórico requeriría leer directamente del bucket S3). Si en el futuro otro sistema del negocio requiere enterarse de la subida, se deberá modificar la arquitectura para implementar un patrón Fan-out (ej. S3 ➔ SNS/EventBridge ➔ SQS).
+- **Resultado:** Se seleccionó SQS debido a que se trata de una cola de procesamiento de trabajos clásica que prioriza los reintentos y el descarte automatizado a DLQ a un costo óptimo de desarrollo y presupuesto.
+
+
 
 
 
