@@ -30,12 +30,14 @@ graph TD
             Lambda
             RDS[(RDS / PostgreSQL)]
         end
-        Lambda -->|4. Escribe datos| RDS
-        Lambda -.->|5. Tráfico privado| S3Endpoint[S3 Gateway Endpoint]
+        Lambda -->|4. Invoca OCR| Textract[Amazon Textract]
+        Lambda -->|5. Envía prompt| Bedrock[Amazon Bedrock LLM]
+        Lambda -->|6. Escribe JSON estructurado| RDS
+        Lambda -.->|7. Tráfico privado| S3Endpoint[S3 Gateway Endpoint]
     end
     
     S3Endpoint -.->|Descarga imagen| S3Raw
-    S3Raw -->|6. Lifecycle Rule: 7 días| Glacier[(S3 Glacier Archive)]
+    S3Raw -->|8. Lifecycle Rule: 7 días| Glacier[(S3 Glacier Archive)]
 ```
 
 ### Componentes de Infraestructura Aprovisionados
@@ -45,7 +47,9 @@ graph TD
 | **Storage de Contratos** | `aws_s3_bucket` | Reglas de ciclo de vida para archivar a Glacier a los 7 días. |
 | **Cola de Mensajería** | `aws_sqs_queue` | Cola principal para amortiguar eventos de ingesta. SQS Queue Policy. |
 | **Cola de Descarte (DLQ)** | `aws_sqs_queue` (DLQ) | Aísla mensajes fallidos tras 3 reintentos (redrive policy). |
-| **Cómputo Serverless** | `aws_lambda_function` | Rol IAM con permisos de lectura S3, SQS y escritura de logs y base de datos. |
+| **Cómputo Serverless** | `aws_lambda_function` | Rol IAM con permisos de lectura S3, SQS, llamadas a Textract/Bedrock, logs y base de datos. |
+| **OCR Cognitivo (Prod)** | `Amazon Textract` | Acceso a API administrada via IAM Policy (sin infraestructura fija). |
+| **Extracción Semántica / LLM (Prod)** | `Amazon Bedrock` | Acceso a modelos (ej: Claude) via IAM Policy (facturación serverless por token). |
 | **Base de Datos** | `aws_db_instance` (emulado PostgreSQL) | Aislado en subred privada VPC. Acceso mediante Security Groups. |
 | **Canal de Red Privada** | `aws_vpc` + `aws_subnet` | Subred privada para Lambda y Base de Datos. |
 | **Optimización de Costos** | `aws_vpc_endpoint` (S3 Gateway) | Ruteo interno de Lambda a S3 sin usar NAT Gateways (costo USD 0). |

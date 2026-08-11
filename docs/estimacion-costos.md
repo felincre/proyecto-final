@@ -8,7 +8,7 @@ Este documento detalla el análisis de costos para el entorno de desarrollo y la
 La aplicación está orientada a administradores de propiedades que necesitan extraer rápidamente datos clave de los contratos de alquiler (montos, nombres de inquilinos, fechas de vigencia y penalidades) sin necesidad de leer manualmente las páginas completas del documento.
 
 *   **Presupuesto dev mensual objetivo:** USD 15.00
-*   **Presupuesto prod mensual objetivo:** USD 55.00
+*   **Presupuesto prod mensual objetivo:** USD 65.00
 *   **Región de despliegue:** us-east-1
 
 ---
@@ -36,23 +36,25 @@ En desarrollo se asume una escala pequeña de pruebas académicas e integración
 
 ## 3. Entorno de Producción (SaaS de Alquileres Escalado)
 
-Para producción, la aplicación opera bajo un modelo multi-inquilino de escala moderada: **1,000 contratos procesados al mes** (SaaS en crecimiento para administradores de consorcios). Se asegura alta disponibilidad con redundancia Multi-AZ en base de datos y balanceador de carga.
+Para producción, la aplicación opera bajo un modelo multi-inquilino de escala moderada: **1,000 contratos procesados al mes** (SaaS en crecimiento para administradores de consorcios). Se asegura alta disponibilidad con redundancia Multi-AZ en base de datos y balanceador de carga, e integra servicios de IA y procesamiento cognitivo nativos de AWS.
 
 ### Estructura de Costos Proyectada (Prod)
 | Servicio AWS | Tipo | Uso Mensual | Precio Unitario | Costo Mensual (USD) | Notas / Justificación |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Amazon RDS PostgreSQL** | `db` | 730 hs | $0.034 / hs | $24.82 | db.t3.micro (**Multi-AZ** para replicación automática de base de datos). |
 | **Application Load Balancer** | `network` | 730 hs | $0.0305 / hs | $22.27 | ALB para balanceo de peticiones y alta disponibilidad ($0.0225/hs + 1 LCU). |
+| **Amazon Textract (OCR)** | `ai / ocr` | 2,000 pág. | $0.0015 / pág | $3.00 | API Detect Document Text para digitalizar imágenes de contratos. |
+| **Amazon Bedrock (LLM)** | `ai / llm` | 1,000 ejec. | $0.009 / ejec | $9.00 | Claude 3.5 Sonnet / Llama 3 para raspado semántico (2.2k tokens/run). |
 | **AWS Secrets Manager** | `security` | 1 secreto | $0.40 / secret | $0.40 | Almacenamiento seguro de llaves de producción. |
 | **Amazon S3 (Standard)** | `storage` | 2 GB | $0.023 / GB | $0.05 | Almacenamiento activo (2 GB nuevos por mes). |
 | **Amazon S3 Glacier** | `storage` | 100 GB | $0.0036 / GB | $0.36 | Archivo histórico acumulado de alquileres finalizados. |
-| **AWS Lambda (ARM64)** | `compute` | 1,000 ejec. | $0.00 | $0.00 | Procesador OCR (128MB, 2s/run). Cubierto por Free Tier. |
+| **AWS Lambda (ARM64)** | `compute` | 1,000 ejec. | $0.00 | $0.00 | Orquestador (128MB, 2s/run). Cubierto por Free Tier. |
 | **Amazon SQS** | `network` | 1,000 msgs. | $0.00 | $0.00 | Buffer de amortiguación de eventos de subida. Cubierto por Free Tier. |
 | **VPC S3 Endpoint** | `network` | 730 hs | $0.00 | $0.00 | Tipo Gateway gratuito para acceso privado interno a S3. |
 | **Data Transfer Out** | `network` | 10 GB | $0.00 | $0.00 | Egress de usuarios interactuando con la web. Cubierto por Free Tier. |
 
-*   **Costo Mensual Prod Total:** **USD 47.90**
-*   **Cumplimiento del Budget:** Sí, entra con holgura en el presupuesto de USD 55.00 con un **12.9% de margen libre** (USD 7.10 restante).
+*   **Costo Mensual Prod Total:** **USD 59.90**
+*   **Cumplimiento del Budget:** Sí, entra con holgura en el presupuesto de USD 65.00 con un **7.8% de margen libre** (USD 5.10 restante).
 
 ---
 
@@ -66,3 +68,4 @@ Para producción, la aplicación opera bajo un modelo multi-inquilino de escala 
     *   *Tradeoff:* Si el usuario del SaaS solicita ver el contrato digitalizado original en su panel web, el sistema tardará entre 3 y 5 horas en recuperarlo de Glacier. Si el negocio requiere descarga instantánea, se debe migrar la regla hacia S3 Glacier Instant Retrieval ($0.004/GB).
 3.  **Apagado Programado de base de datos en Desarrollo:**
     RDS dev representa el mayor gasto en no producción ($12.41). Si limitamos su encendido a solo horas hábiles mediante automatizaciones (ej. apagado automático los fines de semana y noches), reducimos el uso mensual a 220 hs, reduciendo el costo de RDS dev a **USD 3.74/mes** y permitiendo un FinOps óptimo.
+

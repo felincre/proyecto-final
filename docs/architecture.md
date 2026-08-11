@@ -4,7 +4,7 @@
 
 ```mermaid
 graph TD
-    User([Usuario / Escáner]) -->|1. Sube foto .jpg| S3Raw[S3 Bucket: raw-contracts-bucket]
+    User([Usuario / Escáner]) -->|1. Sube foto .jpg| S3Raw[S3 Bucket: raw-contracts]
     S3Raw -->|2. Notificación: ObjectCreated| SQS[SQS: contracts-queue]
     SQS -.->|Fallo reintentos x3| DLQ[SQS DLQ: contracts-dlq]
     SQS -->|3. EventSourceMapping: Trigger| Lambda[AWS Lambda: contract-processor]
@@ -14,13 +14,15 @@ graph TD
             Lambda
             RDS[(RDS / PostgreSQL)]
         end
-        Lambda -->|5. Escribe datos| RDS
-        Lambda -.->|4. Tráfico privado| S3Endpoint[S3 Gateway Endpoint]
-        Lambda -.->|6. Obtiene credenciales| SecretsMgr[(AWS Secrets Manager)]
+        Lambda -->|4. Invoca OCR| Textract[Amazon Textract]
+        Lambda -->|5. Envía prompt| Bedrock[Amazon Bedrock LLM]
+        Lambda -->|6. Escribe JSON estructurado| RDS
+        Lambda -.->|7. Tráfico privado| S3Endpoint[S3 Gateway Endpoint]
+        Lambda -.->|8. Obtiene credenciales| SecretsMgr[(AWS Secrets Manager)]
     end
     
     S3Endpoint -.->|Descarga imagen| S3Raw
-    S3Raw -->|7. Lifecycle Rule: 7 días| Glacier[(S3 Glacier Archive)]
+    S3Raw -->|9. Lifecycle Rule: 7 días| Glacier[(S3 Glacier Archive)]
 ```
 
 *Ver [plan-de-migracion.md](plan-de-migracion.md) para más detalles del plan de tiempos y Gantt.*
@@ -32,6 +34,8 @@ graph TD
 | Contenedor LocalStack S3 | Amazon S3 | AWS IAM S3 Bucket Policy |
 | Contenedor LocalStack SQS | Amazon SQS | SQS Queue Policy |
 | Contenedor Docker Lambda | AWS Lambda | AWS IAM Role `lambda-exec-role` |
+| - | Amazon Textract (Prod) | IAM Permissions (`textract:DetectDocumentText`) |
+| - | Amazon Bedrock (Prod) | IAM Permissions (`bedrock:InvokeModel`) |
 | Contenedor PostgreSQL | Amazon RDS PostgreSQL | VPC Security Groups |
 | LocalStack Secrets Manager | AWS Secrets Manager | AWS KMS / Secrets Policy + IAM Role |
 | Docker network default | AWS VPC / Private Subnet | VPC Route Tables |
