@@ -111,6 +111,16 @@ Para correr los tests unitarios y asegurar que todos los recursos locales se enc
 pytest
 ```
 
+---
+
+## 🚀 Roadmap de Producción: Extracción Inteligente (OCR & LLMs)
+
+Aunque la infraestructura de desarrollo local utiliza simulaciones (mocks) para mantener la portabilidad a costo cero, el diseño de arquitectura productiva proyecta la integración de servicios cognitivos de AWS:
+
+1. **OCR de Alta Fidelidad (Amazon Textract):** Reemplazar la simulación de lectura por la invocación a la API de **Amazon Textract** al recibir el archivo en S3. Textract digitalizará la imagen y extraerá el texto plano de forma robusta estructurando tablas y texto.
+2. **Raspado Semántico (Amazon Bedrock):** El texto plano extraído se enviará como prompt estructurado a un **LLM** a través de **Amazon Bedrock** (ej: Claude 3.5 Sonnet o Llama 3). El modelo interpretará el lenguaje natural del contrato, identificará las variables críticas del alquiler (monto, fechas, depósitos y nombres) y devolverá un esquema JSON estructurado para su inserción directa en PostgreSQL.
+
+Este flujo desacoplado `S3 ➔ SQS ➔ Lambda ➔ Textract ➔ Bedrock (LLM) ➔ RDS` garantiza precisión ante variaciones en la redacción de los contratos sin incurrir en mantenimiento de servidores ni binarios OCR complejos en la función Lambda.
 
 ---
 

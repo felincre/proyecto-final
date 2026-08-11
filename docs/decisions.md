@@ -103,6 +103,27 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
   - *Desventajas:* El mensaje se elimina permanentemente una vez procesado (no hay replay desde la cola; un reprocesamiento histórico requeriría leer directamente del bucket S3). Si en el futuro otro sistema del negocio requiere enterarse de la subida, se deberá modificar la arquitectura para implementar un patrón Fan-out (ej. S3 ➔ SNS/EventBridge ➔ SQS).
 - **Resultado:** Se seleccionó SQS debido a que se trata de una cola de procesamiento de trabajos clásica que prioriza los reintentos y el descarte automatizado a DLQ a un costo óptimo de desarrollo y presupuesto.
 
+---
+
+### 009 — Estrategia de procesamiento de documentos: Simulación (Mock) local y proyección con Amazon Textract (OCR) + Amazon Bedrock (LLM Scraping) en producción
+
+- **Decision:** Utilizar una arquitectura simulada (Mock) durante el desarrollo local, y definir como arquitectura productiva el uso combinado de **Amazon Textract** (para la extracción de texto/OCR de la imagen) junto con **Amazon Bedrock (LLM)** para el raspado semántico (*scraping*) y estructuración de metadatos en formato JSON.
+- **Contexto:** Actualmente, la Lambda de desarrollo simula la base de datos e inserta valores ficticios para evitar emular servicios complejos de IA de forma local y mantener portabilidad. Sin embargo, para la solución real en producción, procesar contratos de alquiler escritos con lenguaje natural variable requiere dos fases:
+  1. *OCR:* Traducir pixeles de la imagen a caracteres de texto.
+  2. *Scraping / Extracción Semántica:* Entender el contexto para extraer variables específicas (fecha de vigencia, nombres de inquilino/propietario, depósitos y montos de alquiler).
+- **Alternativas:**
+  1. *Parser por Expresiones Regulares (Regex):* Buscar palabras clave (ej: "monto", "inquilino") mediante patrones de texto rígidos sobre el OCR. Es muy frágil ante variaciones de redacción o formatos de contratos.
+  2. *Procesamiento OCR local (Tesseract) en Lambda:* Empaquetar binarios de Tesseract en la Lambda. Aumenta drásticamente el tamaño del zip (Cold Starts severos) y consume demasiada CPU/RAM en la Lambda (aumento de costo).
+  3. *Amazon Textract + Amazon Bedrock:* Textract realiza el OCR altamente optimizado como servicio administrado. Posteriormente, el texto extraído se envía como prompt a un LLM en Bedrock (ej: Claude 3.5 Sonnet / Llama 3) con un esquema JSON estructurado para extraer los datos mediante razonamiento semántico.
+- **Tradeoff:**
+  - *Ventajas del enfoque Textract + Bedrock:*
+    - Flexibilidad absoluta ante cualquier formato o redacción de contrato de alquiler.
+    - El LLM puede inferir información que no está explícitamente etiquetada mediante razonamiento semántico (ej: identificar la moneda o deducir penalidades).
+    - Costo bajo al operar bajo demanda por token/petición, sin servidores ni mantenimiento de binarios OCR complejos en la Lambda.
+  - *Desventajas:* Añade latencia de red al consultar dos APIs externas (Textract y Bedrock) dentro de la Lambda, y requiere implementar técnicas de control de costos y prompts robustos frente a posibles alucinaciones del modelo.
+- **Resultado:** Se aprueba la simulación (mock) en desarrollo local para viabilidad académica, y se establece como diseño productivo oficial el flujo `Imagen ➔ S3 ➔ Lambda ➔ Amazon Textract (OCR) ➔ Amazon Bedrock (LLM / Scraping Semántico) ➔ PostgreSQL`.
+
+
 
 
 
