@@ -64,39 +64,52 @@ Al final del módulo, este repo debería tener:
 
 ---
 
-## Cómo correr el proyecto localmente (Local-first)
+## Cómo Levantar y Correr el Proyecto
 
-Para levantar la infraestructura y ejecutar el flujo completo en tu entorno de desarrollo local, sigue estos pasos:
+Puedes ejecutar el flujo completo de dos maneras: **Opción A (Recomendada, en la nube en 1 clic)** o **Opción B (Local en tu computadora)**.
 
-### 1. Iniciar los contenedores Docker (LocalStack & PostgreSQL)
-Levanta los servicios definidos en el archivo compose.
-```bash
-docker compose up -d
-```
-Esto iniciará:
-* **LocalStack (Ministack):** Emulando S3, SQS, SNS, Lambda, VPC, IAM y Secrets Manager en el puerto `4566`.
-* **PostgreSQL:** Actuando como la base de datos relacional (RDS emulado) en el puerto `5432`.
+### Opción A: GitHub Codespaces (Recomendado 🚀)
+No requiere que instales nada en tu computadora (Docker, OpenTofu y dependencias se configuran solos en la nube).
+1. En tu repositorio de GitHub, haz clic en el botón verde **Code** ➔ pestaña **Codespaces** ➔ **Create codespace on main**.
+2. Espera a que termine la inicialización (verás un check verde `✔ Finished` en la barra inferior).
+3. Abre una terminal en Codespaces (**Terminal ➔ New Terminal**) y continúa directo con el [Paso 2: Desplegar y probar](#2-desplegar-la-infraestructura-con-opentofu-iac).
 
-### 1.5 Instalar dependencias de Python
-```bash
-pip install -r requirements.txt
-```
+---
 
-### 2. Desplegar la infraestructura con OpenTofu (IaC)
+### Opción B: Ejecución Local (Local-First 💻)
+Requiere tener instalados **Docker** y **OpenTofu (o Terraform)** en tu máquina.
+
+1. **Iniciar contenedores (LocalStack & PostgreSQL):**
+   ```bash
+   docker compose up -d
+   ```
+2. **Instalar dependencias de Python:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Continúa con el paso de despliegue a continuación.
+
+---
+
+### Ejecución del Pipeline (Común a ambas opciones)
+
+Una vez que el entorno (Codespaces o Local) esté corriendo, ejecuta la secuencia de prueba en la terminal:
+
+#### 1. Desplegar la infraestructura con OpenTofu (IaC)
 Ejecuta el script de despliegue para inicializar OpenTofu y aplicar la configuración en LocalStack de forma automática e idempotente.
 ```bash
 ./scripts/01-deploy-infra.sh
 ```
 Este comando aprovisionará la VPC, subredes, endpoints de S3, el bucket, las colas SQS (principal y DLQ), el Event Source Mapping, las políticas y roles de IAM, el secreto de credenciales en Secrets Manager y la función Lambda.
 
-### 3. Subir un contrato a S3 para disparar el flujo
+#### 2. Subir un contrato a S3 para disparar el flujo
 Sube un archivo de contrato mock (`assets/mock_contract.jpg`) a la subred S3 emulada utilizando Boto3.
 ```bash
 python3 ./scripts/02-upload-contract.py
 ```
 La subida del archivo `.jpg` disparará una notificación de S3 hacia la cola SQS `contratos-serverless-contracts-queue`. La cola procesará el evento y activará de manera automática e indirecta (desacoplada) la ejecución de la función Lambda `contratos-serverless-contract-processor`.
 
-### 4. Validar el procesamiento (Logs y Base de Datos)
+#### 3. Validar el procesamiento (Logs y Base de Datos)
 Verifica que el flujo se completó correctamente leyendo los logs de CloudWatch y consultando la base de datos PostgreSQL.
 ```bash
 python3 ./scripts/03-verify-processing.py
@@ -105,7 +118,7 @@ Este script:
 1. Conecta con la base de datos PostgreSQL y crea/consulta la tabla `processed_contracts` para validar la persistencia e idempotencia.
 2. Lee los logs de ejecución reales de la función Lambda desde el log stream de CloudWatch en LocalStack, validando que la Lambda se haya disparado mediante el evento encolado de SQS (`Processing event received from SQS queue...`).
 
-### 5. Ejecutar Pruebas Unitarias
+#### 4. Ejecutar Pruebas Unitarias
 Para correr los tests unitarios y asegurar que todos los recursos locales se encuentran correctamente configurados en LocalStack (incluyendo las colas SQS y los mapeos de eventos), ejecuta:
 ```bash
 pytest
