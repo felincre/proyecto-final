@@ -77,7 +77,7 @@ def main():
         mock_meta = {
             "status": "PROCESSED",
             "inferred_amount": 15000.00,
-            "inferred_company": "Administración Inmuebles Buenos Aires"
+            "inferred_company": "Administración Inmuebles de Córdoba"
         }
         cursor.execute(query, ("contratos-serverless-raw-contracts", "mock_contract.jpg", json.dumps(mock_meta)))
         conn.commit()
