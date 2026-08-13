@@ -281,7 +281,7 @@ resource "aws_secretsmanager_secret_version" "db_credentials_version" {
     port     = 5432
     dbname   = "contracts_db"
     username = "postgres"
-    password = "postgres"
+    password = var.db_password
   })
 }
 
@@ -422,7 +422,7 @@ resource "aws_db_instance" "postgres" {
   instance_class         = "db.t3.micro"
   db_name                = "contracts_db"
   username               = "postgres"
-  password               = "postgres_prod_password_placeholder"
+  password               = var.db_password
   db_subnet_group_name   = aws_db_subnet_group.db_subnet_group[0].name
   vpc_security_group_ids = [aws_security_group.lambda.id]
   skip_final_snapshot    = true

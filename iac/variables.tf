@@ -15,3 +15,10 @@ variable "region" {
   description = "Región del provider elegido"
   default     = "us-east-1"
 }
+
+variable "db_password" {
+  type        = string
+  sensitive   = true
+  default     = "postgres"
+  description = "Contraseña de la base de datos PostgreSQL (VPC / RDS / Secrets Manager)"
+}

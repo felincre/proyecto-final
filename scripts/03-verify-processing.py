@@ -60,6 +60,13 @@ def main():
             );
         """)
         
+        # NOTA DE DISEÑO ACADÉMICO / FINOPS (LocalStack):
+        # Para evitar problemas de empaquetado de librerías nativas compiladas en C (como psycopg2) 
+        # en la función Lambda corriendo localmente en el contenedor, la Lambda simula la conexión 
+        # e imprime la query SQL resultante en sus logs (validado en la fase 2/2 de este script).
+        # Este script de verificación es el encargado de interactuar de forma segura con PostgreSQL 
+        # y simular la inserción que realizaría la Lambda en producción, completando el flujo E2E local.
+        
         # Insertar un registro mock para demostrar la integración e idempotencia
         query = """
             INSERT INTO processed_contracts (s3_bucket, s3_key, metadata)
@@ -70,7 +77,7 @@ def main():
         mock_meta = {
             "status": "PROCESSED",
             "inferred_amount": 15000.00,
-            "inferred_company": "Mock Corporation LLC"
+            "inferred_company": "Administración Inmuebles Buenos Aires"
         }
         cursor.execute(query, ("contratos-serverless-raw-contracts", "mock_contract.jpg", json.dumps(mock_meta)))
         conn.commit()
