@@ -123,6 +123,28 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
   - *Desventajas:* Añade latencia de red al consultar dos APIs externas (Textract y Bedrock) dentro de la Lambda, y requiere implementar técnicas de control de costos y prompts robustos frente a posibles alucinaciones del modelo.
 - **Resultado:** Se aprueba la simulación (mock) en desarrollo local para viabilidad académica, y se establece como diseño productivo oficial el flujo `Imagen ➔ S3 ➔ Lambda ➔ Amazon Textract (OCR) ➔ Amazon Bedrock (LLM / Scraping Semántico) ➔ PostgreSQL`.
 
+---
+
+### 010 — Estructura analítica del almacenamiento: Data Lake por Zonas (S3) y formato Parquet para escalabilidad de reportería
+
+- **Decision:** Definir que el almacenamiento analítico a largo plazo de contratos y sus metadatos estructurados se organice como un **Data Lake en Amazon S3 distribuido por zonas de madurez** (Landing, Raw, Curated, Consumer) utilizando formatos columnares de alto rendimiento (**Apache Parquet**) y catálogos de datos administrados (**AWS Glue Data Catalog + Amazon Athena**), en lugar de realizar consultas analíticas cruzadas e históricas directamente sobre la base de datos relacional de producción (PostgreSQL/RDS).
+- **Contexto:** En arquitecturas de datos modernas (Clase 16), el motor transaccional (OLTP) de base de datos no debe ser estresado con consultas analíticas pesadas (OLAP) ni reportes de agregación histórica. Adicionalmente, el almacenamiento de metadatos en texto plano (como JSON) o archivos crudos (como imágenes `.jpg`) es ineficiente de consultar directamente. Para escalar la reportería de la plataforma de alquileres, se asumen las siguientes definiciones por zona de datos:
+  1. *Landing (S3):* Contratos crudos (`.jpg`) tal como llegan desde el escáner del usuario con metadatos de ingesta. Actúa como backup inmutable.
+  2. *Raw (S3):* Conversión automática de imágenes a texto plano Parquet particionado por `fecha_registro` (sin limpieza de calidad, conservando PII) para optimizar búsquedas.
+  3. *Curated (S3):* Datos limpios, tipados, deduplicados y con PII enmascarada (ej. encriptar o censurar nombres de inquilinos y números de documentos) para cumplimiento regulatorio.
+  4. *Consumer (S3):* Tablas agregadas listas para BI (ej. valor de alquiler promedio mensual, tasa de morosidad, etc.).
+- **Alternativas:**
+  1. *Ejecutar reportes sobre RDS PostgreSQL:* Aumenta el costo de RDS (requiere CPU/RAM adicionales) y expone datos transaccionales sensibles.
+  2. *Mantener todo el Data Lake en archivos JSON crudos:* Athena cobraría altos montos ya que JSON no permite *partition pruning* eficiente ni lectura columnar (Athena factura $5.00 por TB escaneado). Parquet comprime hasta un 90% el tamaño físico y permite leer solo las columnas necesarias.
+- **Tradeoff:**
+  - *Ventajas:*
+    - Desacoplamiento total del procesamiento transaccional respecto de la analítica de negocio.
+    - Costos de consulta virtualmente nulos al combinar Parquet (columnar) con particionado por fecha en S3.
+    - Cumplimiento estricto de seguridad de datos aislando la zona *Curated* (con PII protegida) de la zona *Consumer* (apta para analistas de negocio).
+  - *Desventajas:* Requiere aprovisionar y orquestar pipelines ETL adicionales (ej. AWS Glue o AWS Lambda) para transformar datos de una zona a otra, y administrar catálogos de metadatos mediante AWS Glue Data Catalog (Trino/Presto).
+- **Resultado:** Aprobado el diseño de Data Lake por zonas sobre S3 para la fase analítica en producción, indexado mediante AWS Glue y consultado vía Amazon Athena.
+
+
 
 
 

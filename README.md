@@ -119,8 +119,9 @@ Aunque la infraestructura de desarrollo local utiliza simulaciones (mocks) para 
 
 1. **OCR de Alta Fidelidad (Amazon Textract):** Reemplazar la simulación de lectura por la invocación a la API de **Amazon Textract** al recibir el archivo en S3. Textract digitalizará la imagen y extraerá el texto plano de forma robusta estructurando tablas y texto.
 2. **Raspado Semántico (Amazon Bedrock):** El texto plano extraído se enviará como prompt estructurado a un **LLM** a través de **Amazon Bedrock** (ej: Claude 3.5 Sonnet o Llama 3). El modelo interpretará el lenguaje natural del contrato, identificará las variables críticas del alquiler (monto, fechas, depósitos y nombres) y devolverá un esquema JSON estructurado para su inserción directa en PostgreSQL.
+3. **Data Lakehouse para Analítica (S3 + Glue + Athena):** Para habilitar reportería y tableros BI (ej. valor de alquiler promedio, tasas de morosidad) sin sobrecargar la base transaccional PostgreSQL, se proyecta un **Data Lake estructurado por zonas de madurez** en S3 buckets separados (`landing`, `raw`, `curated`, `consumer`) usando formato **Apache Parquet** indexado por **AWS Glue Data Catalog** y consultado de forma serverless de bajo costo mediante **Amazon Athena**.
 
-Este flujo desacoplado `S3 ➔ SQS ➔ Lambda ➔ Textract ➔ Bedrock (LLM) ➔ RDS` garantiza precisión ante variaciones en la redacción de los contratos sin incurrir en mantenimiento de servidores ni binarios OCR complejos en la función Lambda.
+Este flujo desacoplado garantiza escalabilidad transaccional y analítica, protegiendo además la privacidad de datos sensibles de inquilinos (PII) en la zona curada.
 
 ---
 
