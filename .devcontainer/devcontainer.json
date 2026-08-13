@@ -7,7 +7,7 @@
     "ghcr.io/devcontainers/features/aws-cli:1": {}
   },
 
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y postgresql-client && curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install.sh | sh -s -- --install-method standalone && python3 -m pip install -r requirements.txt",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y postgresql-client && sudo install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://get.opentofu.org/gpg/opentofu.gpg | sudo tee /etc/apt/keyrings/opentofu.gpg >/dev/null && curl -fsSL https://get.opentofu.org/repositories/opentofu.apt | sudo tee /etc/apt/sources.list.d/opentofu.list >/dev/null && sudo apt-get update && sudo apt-get install -y tofu && python3 -m pip install -r requirements.txt",
   "postStartCommand": "docker compose up -d",
 
   "forwardPorts": [5432, 9000, 9001, 4566],
