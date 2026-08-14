@@ -159,6 +159,34 @@ resource "aws_security_group" "lambda" {
   }
 }
 
+# Security Group dedicado para RDS: solo acepta tráfico PostgreSQL desde la Lambda
+resource "aws_security_group" "rds" {
+  count       = var.environment == "prod" ? 1 : 0
+  name        = "${var.project_name}-rds-sg"
+  description = "Security Group for RDS PostgreSQL - ingress only from Lambda SG"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "PostgreSQL from Lambda"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lambda.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.project_name}-rds-sg"
+    Environment = var.environment
+  }
+}
+
 # -------------------------------------------------------------
 # 4. Seguridad e Identidades (IAM Role, Policies)
 # -------------------------------------------------------------
@@ -274,6 +302,12 @@ resource "aws_secretsmanager_secret" "db_credentials" {
   }
 }
 
+# Contraseña generada automáticamente por OpenTofu (sin defaults hardcodeados)
+resource "random_password" "db_password" {
+  length  = 24
+  special = false # Evitar caracteres que rompan connection strings
+}
+
 resource "aws_secretsmanager_secret_version" "db_credentials_version" {
   secret_id = aws_secretsmanager_secret.db_credentials.id
   secret_string = jsonencode({
@@ -281,7 +315,7 @@ resource "aws_secretsmanager_secret_version" "db_credentials_version" {
     port     = 5432
     dbname   = "contracts_db"
     username = "postgres"
-    password = var.db_password
+    password = random_password.db_password.result
   })
 }
 
@@ -422,9 +456,9 @@ resource "aws_db_instance" "postgres" {
   instance_class         = "db.t3.micro"
   db_name                = "contracts_db"
   username               = "postgres"
-  password               = var.db_password
+  password               = random_password.db_password.result
   db_subnet_group_name   = aws_db_subnet_group.db_subnet_group[0].name
-  vpc_security_group_ids = [aws_security_group.lambda.id]
+  vpc_security_group_ids = [aws_security_group.rds[0].id]
   skip_final_snapshot    = true
   multi_az               = true # Configuración Multi-AZ (ADR 001)
 
