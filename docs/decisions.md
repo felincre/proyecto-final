@@ -144,6 +144,26 @@ Este registro documenta las decisiones clave de arquitectura tomadas durante el 
   - *Desventajas:* Requiere aprovisionar y orquestar pipelines ETL adicionales (ej. AWS Glue o AWS Lambda) para transformar datos de una zona a otra, y administrar catálogos de metadatos mediante AWS Glue Data Catalog (Trino/Presto).
 - **Resultado:** Aprobado el diseño de Data Lake por zonas sobre S3 para la fase analítica en producción, indexado mediante AWS Glue y consultado vía Amazon Athena.
 
+---
+
+### 011 — Modularización de IaC y Estructuración Multi-ambiente para el Aislamiento de Entornos
+
+- **Decisión:** Mantener una estructura de directorios de infraestructura unificada (`iac/`) parametrizada mediante variables en lugar de implementar una modularización completa con directorios físicos separados para `dev` y `prod` (Clase 17), justificando esta decisión para optimizar la portabilidad académica y la emulación local simplificada del proyecto.
+- **Contexto:** En despliegues empresariales reales (Clase 17), la buena práctica exige estructurar el código de IaC utilizando **Módulos de Terraform/OpenTofu** (código reutilizable y parametrizado) y separar físicamente los archivos de estado (`.tfstate`) en directorios distintos para desarrollo y producción (`envs/dev` y `envs/prod`). Esto aísla los entornos y evita que un error de configuración en desarrollo destruya recursos de producción por accidente. Sin embargo, en el contexto de este proyecto final y su demo local:
+  1. La infraestructura se emula localmente sobre un único contenedor de LocalStack.
+  2. El entorno se despliega de forma automática en GitHub Codespaces mediante scripts bash automatizados de un solo clic.
+- **Alternativas:**
+  1. *Modularizar el código de S3, Lambda y RDS en la estructura dev/prod de la Clase 17:* Requiere crear directorios duplicados, inicializar OpenTofu de forma independiente en cada carpeta y reescribir los scripts de deploy locales para apuntar a múltiples rutas de estado.
+  2. *Mantener la estructura unificada parametrizada (Elegida):* Utilizar un único directorio `iac/` y controlar la creación de recursos de producción (como el RDS Multi-AZ o el Security Group dedicado de RDS) de forma dinámica usando condicionales (`count = var.environment == "prod" ? 1 : 0`).
+- **Tradeoff:**
+  - *Ventajas:*
+    - **Portabilidad extrema:** Permite levantar el Codespace e iniciar la demostración E2E con un único comando `./scripts/01-deploy-infra.sh` sin requerir inicializaciones secuenciales y complejas de Terraform en múltiples carpetas.
+    - **Simplicidad operativa:** Menor cantidad de archivos para revisión y mayor velocidad de ejecución en la máquina local/Codespaces del evaluador.
+    - **Control dinámico:** Uso eficiente de lógica condicional en HCL sin duplicar archivos.
+  - *Desventajas:* Si el proyecto escala a un despliegue en la nube real con múltiples cuentas de AWS, la falta de separación física de directorios por entorno incrementa el riesgo de errores operativos (por ejemplo, aplicar cambios de pruebas sobre la cuenta productiva).
+- **Resultado:** Se mantiene la estructura unificada parametrizada en la carpeta `iac/` por motivos de simplicidad y portabilidad en el desarrollo/evaluación local, asumiendo la reestructuración a carpetas multi-ambiente (`envs/dev` y `envs/prod`) con módulos reutilizables como la primera tarea del roadmap de pase a producción.
+
+
 
 
 
